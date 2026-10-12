@@ -58,3 +58,4 @@ server.log
 
 # agent handover artifacts
 /agent-ctx/
+tool-results/
