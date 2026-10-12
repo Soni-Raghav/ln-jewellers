@@ -102,6 +102,7 @@ export default function WishlistView() {
         </div>
       ) : items.length === 0 ? (
         <div className="mx-auto grid max-w-md place-items-center rounded-xl border border-dashed border-[#D4AF37]/40 bg-white py-16 text-center">
+          <span aria-hidden className="mb-5 h-2.5 w-2.5 rotate-45 border border-[#D4AF37] bg-[#D4AF37]/30" />
           <Heart className="mb-4 h-8 w-8 text-[#D4AF37]" strokeWidth={1.4} />
           <p className="font-serif text-xl">Nothing saved yet</p>
           <p className="mt-2 max-w-xs text-sm text-muted-foreground">Tap the heart on any piece to keep it here — wishlist items stay even after you close the browser.</p>

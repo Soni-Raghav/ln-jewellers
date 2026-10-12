@@ -187,6 +187,12 @@ export interface DashboardStats {
   couponRedemptions: number;
   couponSavings: number;
   pendingQuestions: number;
+  stockAlerts: number;
+  engravingOrders: number;
+  giftWrapOrders: number;
+  eligibleOrders: number;
+  engravingAttach: number;
+  giftWrapAttach: number;
   salesSeries: { date: string; label: string; orders: number; revenue: number }[];
   recentOrders: OrderDTO[];
   recentInquiries: { id: string; name: string; email: string; subject: string; status: string; createdAt: string }[];
@@ -200,6 +206,32 @@ export interface ProductQuestionDTO {
   answer: string;
   createdAt: string;
   answeredAt: string | null;
+}
+
+export interface StockAlertDTO {
+  id: string;
+  email: string;
+  phone: string | null;
+  notified: boolean;
+  notifiedAt: string | null;
+  createdAt: string;
+  product: {
+    id: string;
+    name: string;
+    sku: string;
+    slug: string;
+    image: string;
+    stock: number;
+    trackInventory: boolean;
+  };
+}
+
+export interface PublicCouponDTO {
+  code: string;
+  type: "PERCENT" | "FLAT";
+  value: number;
+  minSubtotal: number;
+  description: string | null;
 }
 
 export interface Paginated<T> {

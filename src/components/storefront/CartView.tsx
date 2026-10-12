@@ -17,6 +17,7 @@ export default function CartView() {
   if (cart.length === 0) {
     return (
       <div className="mx-auto grid max-w-xl place-items-center px-4 pb-24 pt-40 text-center">
+        <span aria-hidden className="mb-5 h-2.5 w-2.5 rotate-45 border border-[#D4AF37] bg-[#D4AF37]/30" />
         <ShoppingBag className="mb-4 h-9 w-9 text-[#D4AF37]" strokeWidth={1.4} />
         <h1 className="font-serif text-3xl">Your bag is empty</h1>
         <p className="mt-3 text-sm text-muted-foreground">

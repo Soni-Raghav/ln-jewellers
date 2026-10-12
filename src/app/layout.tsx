@@ -46,6 +46,16 @@ export const metadata: Metadata = {
     images: ["/images/products/ring-solitaire.png"],
   },
   robots: { index: true, follow: true },
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/images/brand/atelier.png", type: "image/png" }],
+    apple: [{ url: "/images/brand/atelier.png", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Aurelia Jewels",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {

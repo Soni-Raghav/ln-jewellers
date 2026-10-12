@@ -120,6 +120,15 @@ export function ProductCard({ product, onOpen, className }: ProductCardProps) {
         className
       )}
     >
+      {/* gold corner accents — a jeweller's frame that draws the eye on hover */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-0 top-0 z-10 h-5 w-5 border-l-2 border-t-2 border-[#D4AF37] opacity-0 transition-all duration-300 group-hover:left-1.5 group-hover:top-1.5 group-hover:opacity-90"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute bottom-0 right-0 z-10 h-5 w-5 border-b-2 border-r-2 border-[#D4AF37] opacity-0 transition-all duration-300 group-hover:bottom-1.5 group-hover:right-1.5 group-hover:opacity-90"
+      />
       {/* ---------- image ---------- */}
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-[#F1E8D2]">
         {image && !imageFailed ? (

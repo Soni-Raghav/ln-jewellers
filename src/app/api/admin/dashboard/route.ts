@@ -45,6 +45,12 @@ export async function GET() {
     const revenue = paidOrders.reduce((n, o) => n + o.total, 0);
     const pendingOrders = orders.filter((o) => ["PLACED", "CONFIRMED", "IN_PRODUCTION"].includes(o.status)).length;
 
+    // ---- personalisation attach rates (cancelled orders excluded) ----
+    const eligible = orders.filter((o) => o.status !== "CANCELLED");
+    const engravingOrders = eligible.filter((o) => !!o.engravingText).length;
+    const giftWrapOrders = eligible.filter((o) => o.giftWrap).length;
+    const pct = (n: number) => (eligible.length ? Math.round((n / eligible.length) * 100) : 0);
+
     // ---- 14-day sales series (orders count + revenue per day) ----
     const DAY_MS = 24 * 60 * 60 * 1000;
     const today = new Date();
@@ -82,6 +88,12 @@ export async function GET() {
       couponRedemptions: couponAgg._sum.usageCount ?? 0,
       couponSavings: couponSavingsAgg._sum.couponDiscount ?? 0,
       pendingQuestions,
+      stockAlerts: await db.stockAlert.count({ where: { notified: false } }),
+      engravingOrders,
+      giftWrapOrders,
+      eligibleOrders: eligible.length,
+      engravingAttach: pct(engravingOrders),
+      giftWrapAttach: pct(giftWrapOrders),
       salesSeries: series,
       recentOrders: orders.slice(0, 8).map((o) => ({
         id: o.id,

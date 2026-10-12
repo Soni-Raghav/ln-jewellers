@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -20,7 +20,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Ticket, Plus, Trash2, Loader2, TicketPercent, TrendingUp, BadgeIndianRupee } from "lucide-react";
+import { Ticket, Plus, Trash2, Loader2, TicketPercent, TrendingUp, BadgeIndianRupee, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
 import { api, errMsg } from "./api";
 import { formatINR, formatDate } from "@/lib/format";
@@ -43,9 +43,49 @@ interface Coupon {
   revenue?: number;
 }
 
+interface CouponOrderRow {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  email: string;
+  subtotal: number;
+  couponDiscount: number;
+  total: number;
+  status: string;
+  paymentStatus: string;
+  createdAt: string;
+}
+
+const STATUS_TONE: Record<string, string> = {
+  PLACED: "bg-[#D4AF37]/15 text-[#7A5E14]",
+  CONFIRMED: "bg-emerald-600/12 text-emerald-800",
+  IN_PRODUCTION: "bg-amber-600/12 text-amber-800",
+  SHIPPED: "bg-[#D4AF37]/15 text-[#7A5E14]",
+  DELIVERED: "bg-emerald-600/12 text-emerald-800",
+  CANCELLED: "bg-red-600/12 text-red-700",
+};
+
 export default function CouponsManager() {
   const [coupons, setCoupons] = useState<Coupon[] | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [ordersFor, setOrdersFor] = useState<Coupon | null>(null);
+  const [ordersData, setOrdersData] = useState<{ orders: CouponOrderRow[]; count: number; savedTotal: number } | null>(null);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  const openOrders = useCallback(async (c: Coupon) => {
+    setOrdersFor(c);
+    setOrdersData(null);
+    setOrdersLoading(true);
+    try {
+      const res = await api<{ orders: CouponOrderRow[]; count: number; savedTotal: number }>(`/api/admin/coupons/${c.id}/orders`);
+      setOrdersData(res);
+    } catch (e) {
+      toast.error(errMsg(e));
+      setOrdersFor(null);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -194,7 +234,13 @@ export default function CouponsManager() {
                     <TableCell className="whitespace-nowrap text-sm">{c.minSubtotal > 0 ? formatINR(c.minSubtotal) : "—"}</TableCell>
                     <TableCell className="text-sm tabular-nums">
                       {(c.orderCount ?? 0) > 0 ? (
-                        <span className="font-medium text-[#1C1A16]" title="Confirmed orders using this code">{c.orderCount}</span>
+                        <button
+                          onClick={() => void openOrders(c)}
+                          className="font-medium text-[#1C1A16] underline decoration-[#D4AF37]/50 decoration-dotted underline-offset-4 transition-colors hover:text-[#A8862A]"
+                          title="See the orders that used this code"
+                        >
+                          {c.orderCount}
+                        </button>
                       ) : (
                         <span className="text-[#B0A88F]">—</span>
                       )}
@@ -255,6 +301,55 @@ export default function CouponsManager() {
         </div>
         </div>
       )}
+
+      {/* ---------- orders drill-down ---------- */}
+      <Dialog open={!!ordersFor} onOpenChange={(o) => !o && setOrdersFor(null)}>
+        <DialogContent className="max-h-[85vh] overflow-hidden border-[#D4AF37]/30 bg-[#FAF7F0] sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-serif">
+              <ReceiptText className="size-5 text-[#A8862A]" aria-hidden />
+              Orders using <span className="font-mono tracking-wider">{ordersFor?.code}</span>
+            </DialogTitle>
+            {ordersData && (
+              <DialogDescription>
+                {ordersData.count} order{ordersData.count === 1 ? "" : "s"} ·{" "}
+                <span className="text-[#7A5E14]">−{formatINR(ordersData.savedTotal)}</span> total discounts given
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="admin-scroll max-h-[60vh] overflow-y-auto pr-1">
+            {ordersLoading ? (
+              <div className="space-y-2 py-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 rounded-lg border border-[#EAE2D3] bg-[#EFEAE0]" />
+                ))}
+              </div>
+            ) : ordersData && ordersData.orders.length > 0 ? (
+              <div className="divide-y divide-[#EAE2D3]">
+                {ordersData.orders.map((o) => (
+                  <div key={o.id} className="flex items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm font-semibold tracking-wide text-[#1C1A16]">{o.orderNumber}</p>
+                      <p className="truncate text-xs text-[#8A8375]">
+                        {o.customerName} · {o.email} · {formatDate(o.createdAt)}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-medium tabular-nums text-[#1C1A16]">{formatINR(o.total)}</p>
+                      <p className="text-xs tabular-nums text-[#7A5E14]">−{formatINR(o.couponDiscount)} saved</p>
+                    </div>
+                    <Badge className={`shrink-0 border-transparent ${STATUS_TONE[o.status] ?? "bg-muted text-muted-foreground"}`}>
+                      {o.status.replace("_", " ").toLowerCase()}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-[#6B655A]">No orders have used this code yet.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

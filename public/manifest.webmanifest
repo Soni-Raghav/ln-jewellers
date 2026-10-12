@@ -1,0 +1,23 @@
+{
+  "name": "Aurelia Jewels — Handcrafted Gold Jewelry",
+  "short_name": "Aurelia",
+  "description": "Heirloom-quality 22K & 18K gold jewellery, handmade in Jaipur. BIS hallmarked. WhatsApp concierge.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "icons": [
+    {
+      "src": "/images/brand/atelier.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/brand/atelier.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

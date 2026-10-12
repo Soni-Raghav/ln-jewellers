@@ -105,7 +105,8 @@ interface ProductFormProps {
 }
 
 export default function ProductForm({ open, onOpenChange, product, onSaved }: ProductFormProps) {
-  const isEdit = !!product;
+  // A "product" with an empty id is a DUPLICATE source — prefill create mode from it.
+  const isEdit = !!product && !!product.id;
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [images, setImages] = useState<string[]>([]);
@@ -155,7 +156,17 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
         model3dUrl: product.model3dUrl ?? "",
       });
       setImages([...(product.images ?? [])]);
-      setVariantRows([]);
+      // Duplicate mode (id === "") carries the source piece's variants over as editable rows
+      setVariantRows(
+        product.id === ""
+          ? (product.variants ?? []).map((v) => ({
+              name: v.name,
+              size: v.size ?? "",
+              priceDelta: String(v.priceDelta ?? 0),
+              stock: String(Math.max(0, v.stock ?? 0)),
+            }))
+          : []
+      );
     } else {
       setForm({ ...EMPTY_FORM });
       setImages([]);
@@ -295,7 +306,7 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
         <DialogHeader>
           <p className="text-[10px] uppercase tracking-[0.3em] text-[#B0A88F]">Atelier catalog</p>
           <DialogTitle className="font-serif text-xl text-[#1C1A16]">
-            {isEdit ? `Edit — ${product?.name}` : "New piece"}
+            {isEdit ? `Edit — ${product?.name}` : product?.id === "" ? "Duplicate as new draft" : "New piece"}
           </DialogTitle>
           <DialogDescription>
             {isEdit

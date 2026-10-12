@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Heart, Share2, Minus, Plus, ShoppingBag, MessageCircle, Truck, RefreshCcw,
-  ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ZoomIn, PenLine,
+  ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ZoomIn, PenLine, BellRing,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate } from "@/lib/format";
@@ -38,6 +38,7 @@ export default function ProductView() {
   const [variantId, setVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [stickyBuy, setStickyBuy] = useState(false);
+  const [notifyOpen, setNotifyOpen] = useState(false);
   const buyBoxRef = useRef<HTMLDivElement | null>(null);
 
   // Magnifier: move the transform-origin with the cursor for a true loupe feel
@@ -358,34 +359,43 @@ export default function ProductView() {
 
           {/* qty + actions */}
           <div ref={buyBoxRef} className="mt-7 flex flex-wrap items-stretch gap-3">
-            <div className="flex items-center rounded-lg border border-[#D4AF37]/40 bg-white">
-              <button onClick={() => setQty(Math.max(1, qty - 1))} className="grid h-11 w-10 place-items-center text-muted-foreground hover:text-foreground" aria-label="Decrease quantity">
-                <Minus className="h-4 w-4" />
-              </button>
-              <Input
-                value={qty}
-                readOnly
-                aria-label="Quantity"
-                className="h-11 w-12 border-0 bg-transparent p-0 text-center focus-visible:ring-0"
-              />
-              <button onClick={() => setQty(Math.min(Math.max(maxStock, 1), qty + 1))} className="grid h-11 w-10 place-items-center text-muted-foreground hover:text-foreground" aria-label="Increase quantity">
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-            <Button
-              onClick={() => handleAdd(false)}
-              disabled={outOfStock}
-              className="h-11 flex-1 bg-[#0A0A0A] text-[#FAF7F0] transition-transform hover:bg-[#171717] active:scale-[0.97] sm:flex-none sm:px-8"
-            >
-              <ShoppingBag className="mr-2 h-4 w-4" /> {outOfStock ? "Out of stock" : "Add to bag"}
-            </Button>
-            <Button
-              onClick={() => handleAdd(true)}
-              disabled={outOfStock}
-              className="h-11 flex-1 bg-[#D4AF37] text-black hover:bg-[#E6C87A] sm:flex-none sm:px-8"
-            >
-              Buy now
-            </Button>
+            {outOfStock ? (
+              <Button
+                onClick={() => setNotifyOpen(true)}
+                className="h-11 min-w-[240px] flex-1 border border-[#D4AF37]/60 bg-[#0A0A0A] text-[#E6C87A] transition-transform hover:bg-[#171717] active:scale-[0.97]"
+              >
+                <BellRing className="mr-2 h-4 w-4" /> Notify me when available
+              </Button>
+            ) : (
+              <>
+                <div className="flex items-center rounded-lg border border-[#D4AF37]/40 bg-white">
+                  <button onClick={() => setQty(Math.max(1, qty - 1))} className="grid h-11 w-10 place-items-center text-muted-foreground hover:text-foreground" aria-label="Decrease quantity">
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <Input
+                    value={qty}
+                    readOnly
+                    aria-label="Quantity"
+                    className="h-11 w-12 border-0 bg-transparent p-0 text-center focus-visible:ring-0"
+                  />
+                  <button onClick={() => setQty(Math.min(Math.max(maxStock, 1), qty + 1))} className="grid h-11 w-10 place-items-center text-muted-foreground hover:text-foreground" aria-label="Increase quantity">
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                <Button
+                  onClick={() => handleAdd(false)}
+                  className="h-11 flex-1 bg-[#0A0A0A] text-[#FAF7F0] transition-transform hover:bg-[#171717] active:scale-[0.97] sm:flex-none sm:px-8"
+                >
+                  <ShoppingBag className="mr-2 h-4 w-4" /> Add to bag
+                </Button>
+                <Button
+                  onClick={() => handleAdd(true)}
+                  className="h-11 flex-1 bg-[#D4AF37] text-black hover:bg-[#E6C87A] sm:flex-none sm:px-8"
+                >
+                  Buy now
+                </Button>
+              </>
+            )}
             <Button variant="outline" size="icon" className="h-11 w-11 border-[#D4AF37]/40" onClick={() => toggleWishlist(product.id)} aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}>
               <Heart className={`h-4 w-4 ${wished ? "fill-[#D4AF37] text-[#D4AF37]" : ""}`} />
             </Button>
@@ -393,6 +403,13 @@ export default function ProductView() {
               <Share2 className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* back-in-stock note */}
+          {outOfStock && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              This piece is being re-crafted in the atelier — leave your email and our concierge will write the moment it returns.
+            </p>
+          )}
 
           {/* engraving hint */}
           {settings?.engravingEnabled !== false && !outOfStock && (
@@ -550,15 +567,122 @@ export default function ProductView() {
             </p>
           </div>
           <Button
-            onClick={() => handleAdd(false)}
-            disabled={outOfStock}
+            onClick={() => (outOfStock ? setNotifyOpen(true) : handleAdd(false))}
             className="mr-14 h-11 shrink-0 bg-[#0A0A0A] px-5 text-[#FAF7F0] hover:bg-[#171717] active:scale-[0.97]"
           >
-            <ShoppingBag className="mr-1.5 h-4 w-4" /> {outOfStock ? "Sold out" : "Add to bag"}
+            {outOfStock ? (
+              <>
+                <BellRing className="mr-1.5 h-4 w-4" /> Notify me
+              </>
+            ) : (
+              <>
+                <ShoppingBag className="mr-1.5 h-4 w-4" /> Add to bag
+              </>
+            )}
           </Button>
         </div>
       </div>
+
+      {/* back-in-stock dialog */}
+      <NotifyMeDialog
+        open={notifyOpen}
+        onOpenChange={setNotifyOpen}
+        slug={product.slug}
+        productName={product.name}
+      />
     </div>
+  );
+}
+
+function NotifyMeDialog({
+  open,
+  onOpenChange,
+  slug,
+  productName,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  slug: string;
+  productName: string;
+}) {
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [sending, setSending] = useState(false);
+
+  const submit = async () => {
+    setSending(true);
+    setFields({});
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(slug)}/stock-alerts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFields(data.fields ?? {});
+        toast.error(data.error ?? "Could not save your request");
+        return;
+      }
+      toast.success(data.message ?? "You're on the list.");
+      onOpenChange(false);
+      setEmail("");
+      setPhone("");
+    } catch {
+      toast.error("Network error — please try again");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="border-[#D4AF37]/30 bg-[#FAF7F0] sm:max-w-md">
+        <DialogHeader>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-[#B0A88F]">Back in stock</p>
+          <DialogTitle className="font-serif">Tell me when “{productName}” returns</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="stock-alert-email" className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Email *</label>
+            <Input
+              id="stock-alert-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="border-[#D4AF37]/40 bg-white"
+              autoComplete="email"
+            />
+            {fields.email && <p className="mt-1 text-xs text-destructive">{fields.email}</p>}
+          </div>
+          <div>
+            <label htmlFor="stock-alert-phone" className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">WhatsApp (optional)</label>
+            <Input
+              id="stock-alert-phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 98765 43210"
+              className="border-[#D4AF37]/40 bg-white"
+              autoComplete="tel"
+            />
+            {fields.phone && <p className="mt-1 text-xs text-destructive">{fields.phone}</p>}
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            One thoughtful note when the piece is ready — no marketing, no sharing. Our concierge can also source
+            similar pieces on request.
+          </p>
+          <Button
+            onClick={() => void submit()}
+            disabled={sending}
+            className="h-11 w-full bg-[#0A0A0A] text-[#E6C87A] hover:bg-[#171717]"
+          >
+            <BellRing className="mr-2 h-4 w-4" /> {sending ? "Saving…" : "Notify me"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

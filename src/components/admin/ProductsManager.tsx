@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  Copy,
   Gem,
   Loader2,
   Pencil,
@@ -304,6 +305,31 @@ export default function ProductsManager() {
                                 <Send className="size-3.5" aria-hidden />
                               )}
                               {p.status === "PUBLISHED" ? "Unpublish" : "Publish"}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-[#5A544A] hover:bg-[#D4AF37]/10 hover:text-[#7A5E14]"
+                              onClick={() => {
+                                // Duplicate: prefill the create form from this piece (new SKU required)
+                                setEditProduct({
+                                  ...p,
+                                  id: "",
+                                  name: `${p.name} (Copy)`,
+                                  sku: "",
+                                  slug: "",
+                                  status: "DRAFT",
+                                  featured: false,
+                                  bestSeller: false,
+                                  trending: false,
+                                  variants: p.variants ?? [],
+                                });
+                                setFormOpen(true);
+                              }}
+                              aria-label={`Duplicate ${p.name}`}
+                              title="Duplicate as new draft"
+                            >
+                              <Copy className="size-4" aria-hidden />
                             </Button>
                             <Button
                               variant="ghost"

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Menu, Search, Heart, ShoppingBag, X, Gem } from "lucide-react";
 import { formatINR, netPrice } from "@/lib/format";
 import type { Product } from "@/lib/types";
+import AnnouncementBar from "./AnnouncementBar";
 
 const NAV_LINKS = [
   { label: "Home", view: "home" as const },
@@ -53,10 +54,8 @@ export default function Navbar() {
   return (
     <>
       <header className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${bg}`}>
-        {/* announcement strip */}
-        <div className="hidden sm:block bg-[#0A0A0A] text-[#E6C87A] text-[11px] tracking-[0.25em] uppercase text-center py-1.5 border-b border-[#D4AF37]/20">
-          BIS Hallmarked · Free insured shipping above ₹50,000 · Order on WhatsApp
-        </div>
+        {/* announcement strip — rotating promos + active coupon codes */}
+        <AnnouncementBar />
         <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
           {/* brand */}
           <button onClick={() => go("home")} className={`flex items-center gap-2.5 ${tone} group`} aria-label="Aurelia Jewels home">

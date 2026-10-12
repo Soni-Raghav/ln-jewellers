@@ -85,6 +85,7 @@ model Product {
   variants          ProductVariant[]
   reviews           Review[]
   questions         ProductQuestion[]
+  stockAlerts       StockAlert[]
   movements         InventoryMovement[]
   orderItems        OrderItem[]
   createdAt         DateTime            @default(now())
@@ -264,6 +265,22 @@ model ProductQuestion {
 
   @@index([productId, approved])
   @@index([approved])
+}
+
+// Back-in-stock requests captured when a piece is sold out.
+model StockAlert {
+  id         String    @id @default(cuid())
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  email      String
+  phone      String?
+  notified   Boolean   @default(false)
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([productId, email])
+  @@index([notified])
+  @@index([productId])
 }
 
 // ============ SETTINGS / AUDIT ============

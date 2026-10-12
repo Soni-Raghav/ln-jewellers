@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
+  Bell,
   Boxes,
   Clock,
   Gem,
+  Gift,
   HelpCircle,
   Loader2,
   Mail,
   PackageX,
+  PenLine,
   Plus,
   ReceiptText,
   Star,
@@ -52,7 +55,7 @@ interface RecentOrder {
 
 type DashboardData = Omit<DashboardStats, "recentOrders"> & { recentOrders: RecentOrder[] };
 
-const KPIS: { key: keyof DashboardData; label: string; icon: LucideIcon; money?: boolean }[] = [
+const KPIS: { key: keyof DashboardData; label: string; icon: LucideIcon; money?: boolean; suffix?: string }[] = [
   { key: "totalProducts", label: "Total Products", icon: Gem },
   { key: "publishedProducts", label: "Published", icon: TrendingUp },
   { key: "totalInventoryUnits", label: "Inventory Units", icon: Boxes },
@@ -66,6 +69,9 @@ const KPIS: { key: keyof DashboardData; label: string; icon: LucideIcon; money?:
   { key: "activeCoupons", label: "Active Coupons", icon: Ticket },
   { key: "couponRedemptions", label: "Coupon Uses", icon: ReceiptText },
   { key: "couponSavings", label: "Coupon Savings", icon: Wallet, money: true },
+  { key: "stockAlerts", label: "Notify Requests", icon: Bell },
+  { key: "engravingAttach", label: "Engraving Attach", icon: PenLine, suffix: "%" },
+  { key: "giftWrapAttach", label: "Gift Wrap Attach", icon: Gift, suffix: "%" },
 ];
 
 export default function Overview() {
@@ -109,7 +115,7 @@ export default function Overview() {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-          {Array.from({ length: 13 }).map((_, i) => (
+          {Array.from({ length: 16 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg border border-[#EAE2D3] bg-[#EFEAE0]" />
           ))}
         </div>
@@ -157,6 +163,7 @@ export default function Overview() {
                 </div>
                 <p className="font-serif text-2xl tabular-nums text-[#0A0A0A] sm:text-3xl">
                   {kpi.money ? formatINR(value) : value.toLocaleString("en-IN")}
+                  {kpi.suffix ? <span className="ml-0.5 text-lg text-[#8A8375]">{kpi.suffix}</span> : null}
                 </p>
               </Card>
             );
