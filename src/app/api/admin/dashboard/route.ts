@@ -7,7 +7,7 @@ export async function GET() {
     const admin = await requireAdmin();
     if (!admin) return unauthorized();
 
-    const [totalProducts, publishedProducts, orders, inquiries, subscribers, pendingReviews, paidOrders] =
+    const [totalProducts, publishedProducts, orders, inquiries, subscribers, pendingReviews, paidOrders, couponAgg, couponSavingsAgg, pendingQuestions] =
       await Promise.all([
         db.product.count(),
         db.product.count({ where: { status: "PUBLISHED" } }),
@@ -16,6 +16,9 @@ export async function GET() {
         db.newsletterSubscriber.count({ where: { active: true } }),
         db.review.count({ where: { approved: false } }),
         db.order.findMany({ where: { paymentStatus: "PAID" }, select: { total: true } }),
+        db.coupon.aggregate({ where: { active: true }, _count: { _all: true }, _sum: { usageCount: true } }),
+        db.order.aggregate({ where: { couponDiscount: { gt: 0 } }, _sum: { couponDiscount: true } }),
+        db.productQuestion.count({ where: { approved: false } }),
       ]);
 
     const products = await db.product.findMany({
@@ -54,6 +57,10 @@ export async function GET() {
       newInquiries: await db.contactInquiry.count({ where: { status: "NEW" } }),
       subscribers,
       pendingReviews,
+      activeCoupons: couponAgg._count._all,
+      couponRedemptions: couponAgg._sum.usageCount ?? 0,
+      couponSavings: couponSavingsAgg._sum.couponDiscount ?? 0,
+      pendingQuestions,
       recentOrders: orders.slice(0, 8).map((o) => ({
         id: o.id,
         orderNumber: o.orderNumber,

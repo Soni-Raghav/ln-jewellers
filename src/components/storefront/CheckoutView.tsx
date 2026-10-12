@@ -187,7 +187,7 @@ export default function CheckoutView() {
               settings as StoreSettingsDTO,
               order.orderNumber,
               cart,
-              { subtotal: order.subtotal, shipping: order.shipping, tax: order.tax, total: order.total },
+              { subtotal: order.subtotal, shipping: order.shipping, tax: order.tax, total: order.total, couponCode: order.couponCode, discount: order.couponDiscount },
               { name: form.customerName, phone: form.phone, address: form.address, city: form.city, state: form.state, pincode: form.pincode }
             )
           : "";
@@ -306,7 +306,8 @@ export default function CheckoutView() {
 
         {/* summary */}
         <aside className="h-fit rounded-xl border border-[#D4AF37]/25 bg-white p-6 lg:sticky lg:top-32">
-          <h2 className="font-serif text-xl">Your order</h2>
+          <p className="text-[10px] uppercase tracking-[0.35em] text-[#A8862A]">Almost yours</p>
+          <h2 className="mt-1 font-serif text-xl">Your order</h2>
           <div className="mt-4 max-h-60 space-y-3 overflow-y-auto pr-1 scrollbar-elegant">
             {cart.map((item: CartItem) => {
               const unit = netPrice(item.unitPrice, item.discountPercent);
@@ -324,15 +325,14 @@ export default function CheckoutView() {
             })}
           </div>
           <Separator className="my-4" />
-          <div className="space-y-2.5 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">{formatINR(subtotal)}</span></div>
+          <div className="text-sm">
+            <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2"><span className="text-xs uppercase tracking-widest text-muted-foreground">Subtotal</span><span className="font-medium">{formatINR(subtotal)}</span></div>
             {couponDiscount > 0 && (
-              <div className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1.5"><Ticket className="h-3.5 w-3.5" /> {appliedCoupon?.code}</span><span className="font-medium">−{formatINR(couponDiscount)}</span></div>
+              <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2 text-[#7a611f]"><span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest"><Ticket className="h-3.5 w-3.5" /> {appliedCoupon?.code}</span><span className="font-medium">−{formatINR(couponDiscount)}</span></div>
             )}
-            <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className="font-medium">{shipping === 0 ? "Free" : formatINR(shipping)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">GST ({taxRate}%)</span><span className="font-medium">{formatINR(tax)}</span></div>
-            <Separator />
-            <div className="flex justify-between text-base"><span className="font-serif">Total</span><span className="font-serif text-xl">{formatINR(total)}</span></div>
+            <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2"><span className="text-xs uppercase tracking-widest text-muted-foreground">Shipping</span><span className="font-medium">{shipping === 0 ? "Free" : formatINR(shipping)}</span></div>
+            <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2"><span className="text-xs uppercase tracking-widest text-muted-foreground">GST ({taxRate}%)</span><span className="font-medium">{formatINR(tax)}</span></div>
+            <div className="flex items-baseline justify-between pt-3"><span className="font-serif">Total</span><span className="font-serif text-xl text-[#0A0A0A]">{formatINR(total)}</span></div>
           </div>
 
           {/* coupon */}

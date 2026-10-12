@@ -84,6 +84,7 @@ model Product {
   salesCount        Int                 @default(0)
   variants          ProductVariant[]
   reviews           Review[]
+  questions         ProductQuestion[]
   movements         InventoryMovement[]
   orderItems        OrderItem[]
   createdAt         DateTime            @default(now())
@@ -242,6 +243,23 @@ model Review {
   createdAt DateTime @default(now())
 
   @@index([productId, approved])
+}
+
+model ProductQuestion {
+  id         String    @id @default(cuid())
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name       String
+  email      String? // optional, so the atelier can reply directly
+  question   String
+  answer     String?
+  approved   Boolean   @default(false)
+  answeredAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([productId, approved])
+  @@index([approved])
 }
 
 // ============ SETTINGS / AUDIT ============

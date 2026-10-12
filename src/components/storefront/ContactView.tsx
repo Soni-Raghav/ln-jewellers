@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Mail, Phone, MapPin, Clock, MessageCircle, Send, CheckCircle2 } from "lucide-react";
+import { Mail, Phone, MapPin, Clock, MessageCircle, Send, CheckCircle2, type LucideIcon } from "lucide-react";
 import { waGeneralInquiry } from "@/lib/format";
 
 const SUBJECTS = ["Custom / bespoke enquiry", "Order status", "Returns & exchange", "Size guidance", "Wholesale / press", "Something else"];
@@ -161,7 +161,7 @@ export default function ContactView() {
   );
 }
 
-function InfoCard({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
+function InfoCard({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-[#D4AF37]/25 bg-white p-5">
       <div className="flex items-center gap-3">

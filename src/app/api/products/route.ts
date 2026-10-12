@@ -44,7 +44,7 @@ export async function GET(req: Request) {
       where.price = { gte: minPrice, lte: maxPrice };
     }
 
-    let orderBy: Prisma.ProductOrderByWithRelationInput;
+    let orderBy: Prisma.ProductOrderByWithRelationInput | Prisma.ProductOrderByWithRelationInput[];
     switch (sort) {
       case "price_asc":
         orderBy = { price: "asc" };

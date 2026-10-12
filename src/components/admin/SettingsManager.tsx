@@ -57,6 +57,7 @@ const DEFAULT_SETTINGS: StoreSettingsDTO = {
   instagramGallery: [],
   testimonials: [],
   razorpayEnabled: false,
+  updatedAt: new Date(0).toISOString(),
 };
 
 export default function SettingsManager() {

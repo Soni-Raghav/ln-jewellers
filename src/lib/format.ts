@@ -55,10 +55,34 @@ export function waGeneralInquiry(settings: Pick<StoreSettingsDTO, "whatsappNumbe
   );
 }
 
+type WaTotals = {
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  couponCode?: string | null;
+  discount?: number;
+};
+
+function waTotalsLines(totals: WaTotals): string[] {
+  const lines = [
+    `Subtotal: ${formatINR(totals.subtotal)}`,
+  ];
+  if (totals.discount && totals.discount > 0 && totals.couponCode) {
+    lines.push(`Coupon (${totals.couponCode}): −${formatINR(totals.discount)}`);
+  }
+  lines.push(
+    `Shipping: ${totals.shipping === 0 ? "Free" : formatINR(totals.shipping)}`,
+    `GST (${3}%): ${formatINR(totals.tax)}`,
+    `*Total: ${formatINR(totals.total)}*`
+  );
+  return lines;
+}
+
 export function waCartInquiry(
   settings: Pick<StoreSettingsDTO, "whatsappNumber">,
   items: CartItem[],
-  totals: { subtotal: number; shipping: number; tax: number; total: number }
+  totals: WaTotals
 ): string {
   const lines = [
     `Hello Aurelia Jewels! ◆`,
@@ -74,15 +98,7 @@ export function waCartInquiry(
       )}`
     );
   });
-  lines.push(
-    ``,
-    `Subtotal: ${formatINR(totals.subtotal)}`,
-    `Shipping: ${totals.shipping === 0 ? "Free" : formatINR(totals.shipping)}`,
-    `GST (${3}%): ${formatINR(totals.tax)}`,
-    `*Total: ${formatINR(totals.total)}*`,
-    ``,
-    `Please confirm availability and next steps. Thank you!`
-  );
+  lines.push(``, ...waTotalsLines(totals), ``, `Please confirm availability and next steps. Thank you!`);
   return waLink(settings.whatsappNumber, lines.join("\n"));
 }
 
@@ -90,7 +106,7 @@ export function waOrderMessage(
   settings: Pick<StoreSettingsDTO, "whatsappNumber">,
   orderNumber: string,
   items: CartItem[],
-  totals: { subtotal: number; shipping: number; tax: number; total: number },
+  totals: WaTotals,
   customer: { name: string; phone: string; address: string; city: string; state: string; pincode: string }
 ): string {
   const lines = [
@@ -105,10 +121,7 @@ export function waOrderMessage(
   });
   lines.push(
     ``,
-    `Subtotal: ${formatINR(totals.subtotal)}`,
-    `Shipping: ${totals.shipping === 0 ? "Free" : formatINR(totals.shipping)}`,
-    `GST: ${formatINR(totals.tax)}`,
-    `*Order Total: ${formatINR(totals.total)}*`,
+    ...waTotalsLines(totals),
     ``,
     `Ship to:`,
     `${customer.name}, ${customer.phone}`,

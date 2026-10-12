@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Boxes,
   Gem,
+  HelpCircle,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -34,6 +35,7 @@ import OrdersManager from "./OrdersManager";
 import InquiriesManager from "./InquiriesManager";
 import SubscribersManager from "./SubscribersManager";
 import ReviewsManager from "./ReviewsManager";
+import QuestionsManager from "./QuestionsManager";
 import SettingsManager from "./SettingsManager";
 import AuditLogs from "./AuditLogs";
 
@@ -46,6 +48,7 @@ type AdminTab =
   | "inquiries"
   | "subscribers"
   | "reviews"
+  | "questions"
   | "settings"
   | "audit";
 
@@ -58,6 +61,7 @@ const SECTIONS: { id: AdminTab; label: string; icon: LucideIcon }[] = [
   { id: "inquiries", label: "Inquiries", icon: Mail },
   { id: "subscribers", label: "Subscribers", icon: Users },
   { id: "reviews", label: "Reviews", icon: Star },
+  { id: "questions", label: "Q & A", icon: HelpCircle },
   { id: "settings", label: "Store Settings", icon: Settings },
   { id: "audit", label: "Audit Logs", icon: ScrollText },
 ];
@@ -257,6 +261,7 @@ export default function AdminView() {
             {tab === "inquiries" && <InquiriesManager />}
             {tab === "subscribers" && <SubscribersManager />}
             {tab === "reviews" && <ReviewsManager />}
+            {tab === "questions" && <QuestionsManager />}
             {tab === "settings" && <SettingsManager />}
             {tab === "audit" && <AuditLogs />}
           </div>

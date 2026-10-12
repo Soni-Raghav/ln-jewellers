@@ -3,7 +3,6 @@
 import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Minus, Plus, Trash2, ShoppingBag, MessageCircle, ArrowRight, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, waCartInquiry } from "@/lib/format";
@@ -45,17 +44,25 @@ export default function CartView() {
       </header>
 
       {freeGap > 0 && settings && (
-        <div className="mx-auto mb-8 flex max-w-3xl items-center gap-3 rounded-lg border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-4 py-3 text-sm">
-          <Truck className="h-4 w-4 shrink-0 text-[#A8862A]" />
-          <p>
-            Add <strong>{formatINR(freeGap)}</strong> more to unlock <strong>free insured shipping</strong>.
-          </p>
+        <div className="mx-auto mb-8 max-w-3xl rounded-lg border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-4 py-3">
+          <div className="flex items-center gap-3 text-sm">
+            <Truck className="h-4 w-4 shrink-0 text-[#A8862A]" />
+            <p>
+              Add <strong>{formatINR(freeGap)}</strong> more to unlock <strong>free insured shipping</strong>.
+            </p>
+          </div>
+          <div className="mt-2.5 ml-7 h-1 overflow-hidden rounded-full bg-[#D4AF37]/15" role="progressbar" aria-valuemin={0} aria-valuemax={settings.freeShippingAbove} aria-valuenow={subtotal}>
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#A8862A] to-[#E6C87A] transition-all duration-700"
+              style={{ width: `${Math.min(100, (subtotal / settings.freeShippingAbove) * 100)}%` }}
+            />
+          </div>
         </div>
       )}
 
       <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
         {/* items */}
-        <div className="divide-y divide-border rounded-xl border border-[#D4AF37]/25 bg-white">
+        <div className="divide-y divide-[#D4AF37]/15 rounded-xl border border-[#D4AF37]/25 bg-white">
           {cart.map((item) => {
             const unit = netPrice(item.unitPrice, item.discountPercent);
             return (
@@ -112,20 +119,20 @@ export default function CartView() {
 
         {/* summary */}
         <aside className="h-fit rounded-xl border border-[#D4AF37]/25 bg-white p-6 lg:sticky lg:top-32">
-          <h2 className="font-serif text-xl">Order Summary</h2>
-          <div className="mt-5 space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">{formatINR(subtotal)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className="font-medium">{shipping === 0 ? "Free" : formatINR(shipping)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">GST ({taxRate}%)</span><span className="font-medium">{formatINR(tax)}</span></div>
-            <Separator className="bg-border" />
-            <div className="flex justify-between text-base"><span className="font-serif">Total</span><span className="font-serif text-xl text-[#0A0A0A]">{formatINR(total)}</span></div>
+          <p className="text-[10px] uppercase tracking-[0.35em] text-[#A8862A]">The Details</p>
+          <h2 className="mt-1 font-serif text-xl">Order Summary</h2>
+          <div className="mt-5 text-sm">
+            <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2.5"><span className="text-xs uppercase tracking-widest text-muted-foreground">Subtotal</span><span className="font-medium">{formatINR(subtotal)}</span></div>
+            <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2.5"><span className="text-xs uppercase tracking-widest text-muted-foreground">Shipping</span><span className="font-medium">{shipping === 0 ? "Free" : formatINR(shipping)}</span></div>
+            <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2.5"><span className="text-xs uppercase tracking-widest text-muted-foreground">GST ({taxRate}%)</span><span className="font-medium">{formatINR(tax)}</span></div>
+            <div className="flex items-baseline justify-between pt-3"><span className="font-serif">Total</span><span className="font-serif text-xl text-[#0A0A0A]">{formatINR(total)}</span></div>
           </div>
-          <Button onClick={() => navigate("checkout")} className="mt-6 h-12 w-full bg-[#D4AF37] text-base font-medium text-black hover:bg-[#E6C87A]">
+          <Button onClick={() => navigate("checkout")} className="btn-shimmer mt-6 h-12 w-full bg-[#D4AF37] text-base font-medium text-black hover:bg-[#E6C87A]">
             Proceed to Checkout <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           {settings && (
             <a
-              href={waCartInquiry(settings, cart, { subtotal, shipping, tax, total })}
+              href={waCartInquiry(settings, cart, { subtotal, shipping, tax, total, couponCode: null, discount: 0 })}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-[#25D366]/50 bg-[#25D366]/5 text-sm font-medium text-[#128C4B] transition-colors hover:bg-[#25D366]/15"

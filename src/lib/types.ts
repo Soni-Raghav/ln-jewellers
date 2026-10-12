@@ -159,6 +159,7 @@ export interface StoreSettingsDTO {
   instagramGallery: string[];
   testimonials: { name: string; location: string; text: string; rating: number }[];
   razorpayEnabled: boolean;
+  updatedAt: string;
 }
 
 export interface DashboardStats {
@@ -173,9 +174,22 @@ export interface DashboardStats {
   newInquiries: number;
   subscribers: number;
   pendingReviews: number;
+  activeCoupons: number;
+  couponRedemptions: number;
+  couponSavings: number;
+  pendingQuestions: number;
   recentOrders: OrderDTO[];
   recentInquiries: { id: string; name: string; email: string; subject: string; status: string; createdAt: string }[];
   topProducts: { id: string; name: string; sold: number }[];
+}
+
+export interface ProductQuestionDTO {
+  id: string;
+  name: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+  answeredAt: string | null;
 }
 
 export interface Paginated<T> {

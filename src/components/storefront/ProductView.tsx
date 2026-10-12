@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate } from "@/lib/format";
-import type { Product, Paginated } from "@/lib/types";
+import type { Product, ProductQuestionDTO } from "@/lib/types";
 import RecentlyViewed, { pushRecent } from "@/components/storefront/RecentlyViewed";
+import SizeGuideDialog from "@/components/storefront/SizeGuideDialog";
 
 export default function ProductView() {
   const params = useApp((s) => s.params);
@@ -266,10 +267,20 @@ export default function ProductView() {
             {!product.readyToShip && <span className="ml-3 text-sm text-muted-foreground">Made to order — crafted for you in 3–8 weeks</span>}
           </div>
 
+          {/* size guide when no variant picker exists */}
+          {product.variants.length === 0 && ["rings", "bracelets-bangles", "necklaces"].includes(product.category?.slug ?? "") && (
+            <div className="mt-3">
+              <SizeGuideDialog categorySlug={product.category?.slug} categoryName={product.category?.name} />
+            </div>
+          )}
+
           {/* variants */}
           {product.variants.length > 0 && (
             <div className="mt-6">
-              <p className="mb-2 text-[11px] uppercase tracking-[0.3em] text-[#A8862A]">Choose option</p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[11px] uppercase tracking-[0.3em] text-[#A8862A]">Choose option</p>
+                <SizeGuideDialog categorySlug={product.category?.slug} categoryName={product.category?.name} />
+              </div>
               <div className="flex flex-wrap gap-2">
                 {product.variants.map((v) => {
                   const active = v.id === variantId;
@@ -364,7 +375,7 @@ export default function ProductView() {
             <AccordionItem value="specs">
               <AccordionTrigger className="font-serif text-base">Specifications</AccordionTrigger>
               <AccordionContent>
-                <dl className="grid grid-cols-[110px_1fr] gap-x-4 gap-y-2.5 text-sm">
+                <dl className="text-sm">
                   {[
                     ["Material", product.material],
                     ["Purity", product.purity],
@@ -377,9 +388,9 @@ export default function ProductView() {
                   ]
                     .filter(([, v]) => v)
                     .map(([k, v]) => (
-                      <div key={k as string} className="contents">
-                        <dt className="text-muted-foreground">{k}</dt>
-                        <dd className="font-medium">{v}</dd>
+                      <div key={k as string} className="flex items-baseline justify-between gap-4 border-b border-[#D4AF37]/10 py-2 last:border-b-0">
+                        <dt className="shrink-0 text-xs uppercase tracking-widest text-muted-foreground">{k}</dt>
+                        <dd className="text-right font-medium">{v}</dd>
                       </div>
                     ))}
                 </dl>
@@ -443,6 +454,9 @@ export default function ProductView() {
           </p>
         )}
       </section>
+
+      {/* questions & answers */}
+      <QuestionsSection slug={product.slug} productName={product.name} />
 
       {/* recently viewed */}
       <RecentlyViewed excludeSlug={product.slug} />
@@ -541,6 +555,171 @@ function ReviewDialog({ productId }: { productId: string }) {
           <Button onClick={submit} disabled={sending} className="w-full bg-[#0A0A0A] text-[#FAF7F0] hover:bg-[#171717]">
             {sending ? "Sending…" : "Submit review"}
           </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function QuestionsSection({ slug, productName }: { slug: string; productName: string }) {
+  const [qa, setQa] = useState<{ slug: string; questions: ProductQuestionDTO[] } | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
+  const loading = !qa || qa.slug !== slug;
+  const questions = qa?.slug === slug ? qa.questions : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/products/${encodeURIComponent(slug)}/questions`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => {
+        if (!cancelled) setQa({ slug, questions: data.questions ?? [] });
+      })
+      .catch(() => {
+        if (!cancelled) setQa({ slug, questions: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  return (
+    <section className="mt-20" aria-label="Questions and answers">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.35em] text-[#A8862A]">Curious minds</p>
+          <h2 className="mt-2 font-serif text-3xl">Questions &amp; Answers</h2>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setAskOpen(true)}
+          className="border-[#D4AF37]/50 text-[#A8862A] hover:bg-[#D4AF37] hover:text-black"
+        >
+          Ask about {productName.split(" ").slice(0, 3).join(" ")}
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-20 w-full bg-muted" />
+          <Skeleton className="h-20 w-full bg-muted" />
+        </div>
+      ) : questions && questions.length > 0 ? (
+        <div className="grid gap-5 md:grid-cols-2">
+          {questions.map((q) => (
+            <article key={q.id} className="rounded-xl border border-[#D4AF37]/25 bg-white p-6">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 font-serif text-lg font-semibold text-[#D4AF37]" aria-hidden>Q.</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-relaxed">{q.question}</p>
+                  <p className="mt-1.5 text-xs text-muted-foreground">{q.name} · {formatDate(q.createdAt)}</p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-start gap-3 border-l-2 border-[#D4AF37]/50 pl-4">
+                <span className="mt-0.5 font-serif text-lg font-semibold text-[#A8862A]" aria-hidden>A.</span>
+                <div className="min-w-0">
+                  <p className="text-sm leading-relaxed text-muted-foreground">{q.answer}</p>
+                  <p className="mt-1.5 text-[11px] uppercase tracking-widest text-[#A8862A]">
+                    Aurelia Atelier{q.answeredAt ? ` · ${formatDate(q.answeredAt)}` : ""}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-xl border border-dashed border-[#D4AF37]/30 py-10 text-center text-sm text-muted-foreground">
+          No questions yet — ask us anything about this piece and our karigars will answer.
+        </p>
+      )}
+
+      <AskQuestionDialog slug={slug} open={askOpen} onOpenChange={setAskOpen} />
+    </section>
+  );
+}
+
+function AskQuestionDialog({
+  slug,
+  open,
+  onOpenChange,
+}: {
+  slug: string;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [question, setQuestion] = useState("");
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [sending, setSending] = useState(false);
+
+  const submit = async () => {
+    setSending(true);
+    setFields({});
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(slug)}/questions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, question }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFields(data.fields ?? {});
+        toast.error(data.error ?? "Could not submit your question");
+        return;
+      }
+      toast.success(data.message ?? "Thank you — our atelier will answer shortly.");
+      onOpenChange(false);
+      setName("");
+      setEmail("");
+      setQuestion("");
+    } catch {
+      toast.error("Network error — please try again");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="border-[#D4AF37]/30 bg-[#FAF7F0]">
+        <DialogHeader>
+          <DialogTitle className="font-serif">Ask the atelier</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Your name</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="border-[#D4AF37]/40 bg-white" />
+            {fields.name && <p className="mt-1 text-xs text-destructive">{fields.name}</p>}
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">
+              Email <span className="normal-case tracking-normal opacity-70">(optional — for a personal reply)</span>
+            </label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="border-[#D4AF37]/40 bg-white"
+            />
+            {fields.email && <p className="mt-1 text-xs text-destructive">{fields.email}</p>}
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Your question</label>
+            <Textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              rows={4}
+              placeholder="e.g. Can this be made in a size 12? How long would it take?"
+              className="border-[#D4AF37]/40 bg-white"
+            />
+            {fields.question && <p className="mt-1 text-xs text-destructive">{fields.question}</p>}
+          </div>
+          <Button onClick={submit} disabled={sending} className="w-full bg-[#0A0A0A] text-[#FAF7F0] hover:bg-[#171717]">
+            {sending ? "Sending…" : "Send question"}
+          </Button>
+          <p className="text-center text-[11px] text-muted-foreground">
+            Answers are published on this page after review. Personal details are never shown publicly.
+          </p>
         </div>
       </DialogContent>
     </Dialog>

@@ -6,8 +6,15 @@ export async function GET() {
   return handle(async () => {
     const admin = await requireAdmin();
     if (!admin) return unauthorized();
-    const coupons = await db.coupon.findMany({ orderBy: { createdAt: "desc" } });
-    return ok({ items: coupons });
+    const [coupons, savings] = await Promise.all([
+      db.coupon.findMany({ orderBy: { createdAt: "desc" } }),
+      db.order.groupBy({ by: ["couponCode"], where: { couponCode: { not: null } }, _sum: { couponDiscount: true } }),
+    ]);
+    const grantedMap = new Map(savings.map((s) => [s.couponCode, s._sum.couponDiscount ?? 0]));
+    return ok({
+      items: coupons.map((c) => ({ ...c, granted: grantedMap.get(c.code) ?? 0 })),
+      activeCount: coupons.filter((c) => c.active).length,
+    });
   });
 }
 

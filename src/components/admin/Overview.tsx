@@ -6,12 +6,14 @@ import {
   Boxes,
   Clock,
   Gem,
+  HelpCircle,
   Loader2,
   Mail,
   PackageX,
   Plus,
   ReceiptText,
   Star,
+  Ticket,
   TrendingUp,
   Users,
   Wallet,
@@ -60,6 +62,10 @@ const KPIS: { key: keyof DashboardData; label: string; icon: LucideIcon; money?:
   { key: "newInquiries", label: "New Inquiries", icon: Mail },
   { key: "subscribers", label: "Subscribers", icon: Users },
   { key: "pendingReviews", label: "Pending Reviews", icon: Star },
+  { key: "pendingQuestions", label: "Pending Q & A", icon: HelpCircle },
+  { key: "activeCoupons", label: "Active Coupons", icon: Ticket },
+  { key: "couponRedemptions", label: "Coupon Uses", icon: ReceiptText },
+  { key: "couponSavings", label: "Coupon Savings", icon: Wallet, money: true },
 ];
 
 export default function Overview() {
@@ -103,7 +109,7 @@ export default function Overview() {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-          {Array.from({ length: 9 }).map((_, i) => (
+          {Array.from({ length: 13 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg border border-[#EAE2D3] bg-[#EFEAE0]" />
           ))}
         </div>
@@ -139,12 +145,17 @@ export default function Overview() {
             const raw = data[kpi.key];
             const value = typeof raw === "number" ? raw : 0;
             return (
-              <Card key={kpi.key as string} className="gap-2 border-[#EAE2D3] bg-white p-4">
+              <Card
+                key={kpi.key as string}
+                className="group gap-2 border-[#EAE2D3] bg-white p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#D4AF37]/50 hover:shadow-[0_8px_24px_-12px_rgba(212,175,55,0.45)]"
+              >
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] uppercase tracking-wider text-[#8A8375]">{kpi.label}</p>
-                  <kpi.icon className="size-4 text-[#D4AF37]" aria-hidden />
+                  <span className="grid size-6 place-items-center rounded-full bg-[#D4AF37]/10 transition-colors group-hover:bg-[#D4AF37]/20">
+                    <kpi.icon className="size-3.5 text-[#A8862A]" aria-hidden />
+                  </span>
                 </div>
-                <p className="font-serif text-2xl tabular-nums text-[#D4AF37] sm:text-3xl">
+                <p className="font-serif text-2xl tabular-nums text-[#0A0A0A] sm:text-3xl">
                   {kpi.money ? formatINR(value) : value.toLocaleString("en-IN")}
                 </p>
               </Card>

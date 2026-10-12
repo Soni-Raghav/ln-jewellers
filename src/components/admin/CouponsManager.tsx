@@ -38,6 +38,7 @@ interface Coupon {
   usageLimit: number | null;
   expiresAt: string | null;
   createdAt: string;
+  granted?: number;
 }
 
 export default function CouponsManager() {
@@ -137,6 +138,7 @@ export default function CouponsManager() {
                 <TableHead>Discount</TableHead>
                 <TableHead>Min. order</TableHead>
                 <TableHead>Usage</TableHead>
+                <TableHead>Savings given</TableHead>
                 <TableHead>Expires</TableHead>
                 <TableHead>Active</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -160,6 +162,13 @@ export default function CouponsManager() {
                     <TableCell className="text-sm">
                       {c.usageCount}{c.usageLimit !== null ? ` / ${c.usageLimit}` : ""}
                       {exhausted && <Badge className="ml-2 bg-destructive/15 text-destructive">Limit reached</Badge>}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {c.granted && c.granted > 0 ? (
+                        <span className="font-medium text-[#7A5E14]">−{formatINR(c.granted)}</span>
+                      ) : (
+                        <span className="text-[#B0A88F]">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
                       {c.expiresAt ? formatDate(c.expiresAt) : "Never"}
