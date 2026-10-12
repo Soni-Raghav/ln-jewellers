@@ -145,3 +145,32 @@ Stage Summary:
 - Lint 0 errors 0 warnings; committed e27da45
 - All round-2 features browser-verified (see work log); dev server stable via double-fork pattern
 - Next suggestions: coupon usage counter in dashboard KPIs; WhatsApp message could include coupon line; product Q&A; size-guide modal; order confirmation email (needs SMTP creds); Git push still pending credentials
+
+---
+Task ID: cron-r3
+Agent: webDevReview agent (round 3)
+Task: Status assessment + agent-browser QA + new features (product Q&A, size guide, coupon analytics, WhatsApp coupon line) + styling polish
+
+Work Log:
+- STATUS ASSESSMENT: dev server healthy (GET / 200, /api/health ok); reviewed worklog; git tree clean on main @e27da45
+- QA sweep via agent-browser (fresh session): home (3D hero, 31/31 images load after scroll — earlier "broken" counts were lazy-load false positives), shop (13 pieces, filters), product detail, reviews, related grid, footer sticky, admin login + all tabs, mobile 390px responsive. No console/page errors.
+- BUGS FOUND & FIXED:
+  1. /images/products/pendant-handmade.png + bracelet-chain.png referenced by DB (product bhaav-hammered-ruby-pendant, sutra-handchain-bracelet, artisan-soul collection, HomeView editorial) but MISSING on disk → letter-fallbacks in UI. Regenerated both via z-ai CLI (1024x1024, luxury catalog style); verified 200 + rendered.
+  2. Pre-existing tsc errors fixed: products route orderBy union type, settings route `let dto = null` typing, ContactView InfoCard icon prop (React.ElementType → LucideIcon), PolicyView settings.updatedAt (added updatedAt to StoreSettingsDTO + SettingsManager default).
+- NEW FEATURE — Product Q&A (full stack):
+  * prisma ProductQuestion model (productId, name, email?, question, answer?, approved, answeredAt) + db:push + prisma generate (client regen required dev-server restart via (setsid nohup bun run dev &))
+  * Public: GET/POST /api/products/[slug]/questions (POST rate-limited 5/30min, validated, sanitized; GET returns approved+answered only)
+  * Admin: GET /api/admin/questions (q + filter all/pending/answered + pagination, product join), PATCH /api/admin/questions/[id] (answer→answeredAt+audit QUESTION_ANSWER, approve→audit), DELETE (audit)
+  * ProductView: QuestionsSection (grid cards Q./A. gold markers, "AURELIA ATELIER" attribution, empty state) + AskQuestionDialog (name/email-optional/question, field errors, moderation notice)
+  * Admin QuestionsManager.tsx (search debounced, filter chips, product thumb cards, answer textarea auto-rows, Publish answer auto-approves, Unapprove toggle, delete confirm) + "Q & A" tab in AdminView
+- NEW FEATURE — Size Guide dialog (src/components/storefront/SizeGuideDialog.tsx): shown next to "Choose option" (variants) or under stock line (no-variant products in rings/bracelets-bangles/necklaces); tabs per category; BIS Indian ring chart (5–15 → US/diameter/circumference, US=(Indian+3)/2), bangle chart (2.2"–2.10"), chain length guide (14"–24"); how-to-measure tips; real WhatsApp deep link for bespoke sizing
+- NEW FEATURE — Coupon analytics: dashboard API adds activeCoupons/couponRedemptions/couponSavings/pendingQuestions; Overview gets 4 new KPI cards (13 total) w/ gold icon badges + hover lift shadow; /api/admin/coupons GET adds per-coupon `granted` (order groupBy) → "Savings given" column (−₹3,290 shown for AURELIA10)
+- NEW FEATURE — WhatsApp coupon line: format.ts waTotalsLines helper; waCartInquiry/waOrderMessage accept optional couponCode/discount and print `Coupon (CODE): −₹X`; CheckoutView passes order.couponCode/couponDiscount (verified in intercepted wa.me URL: "Coupon (AURELIA10): −₹5,650")
+- STYLING POLISH: Cart free-shipping banner → gold gradient progress bar (role=progressbar); cart item dividers gold-tinted; cart + checkout summaries rebuilt with uppercase hairline rows (border-[#D4AF37]/10) + serif totals + "The Details"/"Almost yours" eyebrows + btn-shimmer on checkout CTA; admin KPI cards hover-lift w/ gold glow; product specs accordion now hairline-separated luxury table
+- E2E VERIFIED: question submit → admin answer+approve → public Q&A visible (Priya Sharma resize question live); order AUR-20261012-BTOBY w/ AURELIA10 (subtotal 56500, −5650, GST 1526, total 52376) → coupon usage 1→2, granted ₹3,290→₹8,940; size guide dialog + ring table renders; admin Q&A tab + Overview KPIs + Coupons savings column render; mobile Q&A responsive
+- bun run lint → 0 errors 0 warnings; bunx tsc --noEmit → clean in src/ (only examples/+skills/ scaffolding noise remains); committed ff4a9ec
+
+Stage Summary:
+- Files created: src/app/api/products/[slug]/questions/route.ts, src/app/api/admin/questions/route.ts, src/app/api/admin/questions/[id]/route.ts, src/components/admin/QuestionsManager.tsx, src/components/storefront/SizeGuideDialog.tsx, public/images/products/{pendant-handmade,bracelet-chain}.png
+- Files modified: prisma/schema.prisma, src/lib/{format,types}.ts, src/app/api/admin/{dashboard,coupons}/route.ts, src/app/api/products/route.ts, src/app/api/settings/route.ts, src/components/admin/{AdminView,Overview,CouponsManager,SettingsManager}.tsx, src/components/storefront/{ProductView,CartView,CheckoutView,ContactView}.tsx
+- Next suggestions: (1) order-confirmation email needs SMTP creds; (2) Razorpay/Cloudinary/GitHub push all still blocked on credentials; (3) product page video/360° tab if GLB assets arrive; (4) gift-wrap option at checkout; (5) "load more" pagination feel on shop grid
