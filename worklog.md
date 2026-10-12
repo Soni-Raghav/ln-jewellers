@@ -174,3 +174,35 @@ Stage Summary:
 - Files created: src/app/api/products/[slug]/questions/route.ts, src/app/api/admin/questions/route.ts, src/app/api/admin/questions/[id]/route.ts, src/components/admin/QuestionsManager.tsx, src/components/storefront/SizeGuideDialog.tsx, public/images/products/{pendant-handmade,bracelet-chain}.png
 - Files modified: prisma/schema.prisma, src/lib/{format,types}.ts, src/app/api/admin/{dashboard,coupons}/route.ts, src/app/api/products/route.ts, src/app/api/settings/route.ts, src/components/admin/{AdminView,Overview,CouponsManager,SettingsManager}.tsx, src/components/storefront/{ProductView,CartView,CheckoutView,ContactView}.tsx
 - Next suggestions: (1) order-confirmation email needs SMTP creds; (2) Razorpay/Cloudinary/GitHub push all still blocked on credentials; (3) product page video/360° tab if GLB assets arrive; (4) gift-wrap option at checkout; (5) "load more" pagination feel on shop grid
+
+---
+Task ID: cron-r4
+Agent: webDevReview agent (round 4)
+Task: Status assessment + agent-browser QA + new features (gift wrap, printable invoice, sales chart, wishlist share, image zoom) + 3D gem fix + styling polish
+
+Work Log:
+- STATUS ASSESSMENT: dev server healthy (GET / 200, /api/health ok); git clean on main @ff4a97d55...; bun run lint 0 errors 0 warnings; tsc clean in src/; reviewed worklog (all rounds 1-3 features intact).
+- QA SWEEP (agent-browser, fresh session): home 3D hero + all sections, shop filters/sort, product detail (breadcrumbs/variants/size guide/Q&A/stock urgency), cart, checkout (coupon + payment options), track order (stepper), admin login + all tabs, footer sticky. Zero console/page errors. No regressions found.
+- BUGFIX — 3D hero gem rendered as flat white artifact (octahedron + emissive 0.3 + spotLight 300 saturated the large facet to pure white):
+  * Iterated 3 times in browser: (1) meshPhysicalMaterial + warmer color + lower emissive + spot 300→190; (2) roughness 0.22/clearcoat 0.45; (3) octahedron → icosahedron (20 facets, scale y 1.18) — gem now reads as a faceted champagne stone with individual facet shading. Verified via screenshots.
+- NEW FEATURE — Signature gift wrap (FULL STACK, spec §6 "gift wrap option"):
+  * prisma: Order.giftWrap Boolean + Order.giftWrapFee Float; StoreSettings.giftWrapFee Float @default(500); db:push + client regen (dev server restarted via (setsid nohup bun run dev &))
+  * Server-trust: POST /api/orders accepts giftWrap bool, fee ALWAYS computed server-side from settings.giftWrapFee (client value ignored); total = subtotal − coupon + shipping + tax + giftWrapFee; persisted + returned in response
+  * CheckoutView: "Finishing touches" card (Checkbox + Gift icon, +₹500 price, luxury packaging copy), summary gift-wrap line, PlacedOrder confirmation line, giftWrap sent to API + WhatsApp totals
+  * WhatsApp: waTotalsLines prints "Signature gift wrap: ₹500"; waOrderMessage appends "Please include the signature gift wrap." — VERIFIED in intercepted wa.me URL for order AUR-20261012-CQ95Z
+  * Track order API returns giftWrap/giftWrapFee (+couponCode/couponDiscount/address fields for invoice) → TrackOrderView shows gold gift-wrap line
+  * Admin: OrdersManager detail dialog shows "Signature gift wrap ₹500" (gold, via new TotalRow gold prop; also added coupon line that was missing); SettingsManager Commerce card gets "Gift wrap fee (₹)" input; admin settings PATCH validates giftWrapFee (max(0, toFloat))
+  * DB VERIFIED: AUR-20261012-CQ95Z {giftWrap:true, giftWrapFee:500, subtotal:56500, shipping:0, tax:1695, total:58695} — math exact
+- NEW FEATURE — Printable invoice (TrackOrderView): "Print invoice" button (window.print) + print-only letterhead block (brand header, "Tax invoice", order number/date, billed-to address, payment method) + @media print CSS in globals.css (visibility-switch technique, hides nav/footer/timeline/images, strips chrome from the order card, print:hidden on interactive rows)
+- NEW FEATURE — Admin 14-day sales chart: dashboard API computes salesSeries (14 day buckets {date,label,orders,revenue} from the orders already fetched); Overview gets "Last 14 days" card — pure SVG gold-gradient bar chart with order-day dots, hover <title> tooltips, date labels every 2 days, totals in header (VERIFIED: "7 orders · ₹7,28,980 value", gold bar on 12 Oct). No chart lib added (zero deps).
+- NEW FEATURE — Wishlist sharing: WishlistView header gets "Ask concierge on WhatsApp" (green CTA) + "Copy list" (clipboard w/ toast); WhatsApp message lists up to 12 wished pieces with net prices — VERIFIED in intercepted wa.me URL ("1. *Surya Solitaire Ring* — ₹1,70,100")
+- NEW FEATURE — Product image hover zoom (ProductView gallery): cursor-following transform-origin (loupe feel), scale 1.85 with 300ms ease-out, "Hover to zoom" pill fades while active — VERIFIED via DOM (origin 50% 49.97%, scale 1.85) + screenshots; desktop-only relevance (touch ignores hover)
+- STYLING POLISH: Add-to-bag active:scale-[0.97] press feedback; gift wrap/coupon lines styled gold (#7a611f) across checkout/track/admin; TotalRow gold variant in admin
+- E2E VERIFIED (agent-browser): gift wrap check → +₹500 in summary & total 58,695; order placed → confirmation + wa.me URL with gift wrap lines; tracked order shows gift wrap line + Print invoice btn; admin order detail + settings fee field + chart render; wishlist share URL correct; zoom transform live; mobile 390px checkout "Finishing touches" card renders; no console errors anywhere
+- bun run lint → 0 errors 0 warnings; bunx tsc --noEmit → clean in src/; dev.log clean (only benign THREE.Clock deprecation); committed 7af9fa6 (+ gitignore for tool-results/)
+
+Stage Summary:
+- Files modified: prisma/schema.prisma, src/lib/{types,format}.ts, src/app/globals.css, src/app/api/orders/route.ts, src/app/api/orders/[number]/route.ts, src/app/api/admin/{settings,dashboard}/route.ts, src/components/storefront/{CheckoutView,TrackOrderView,WishlistView,ProductView}.tsx, src/components/admin/{Overview,OrdersManager,SettingsManager}.tsx, src/components/three/JewelHero.tsx
+- Decisions: (1) gift wrap fee is per-order (not per-item) and untaxed — simplest correct default for a concierge-style service; (2) chart is dependency-free SVG (no recharts) to keep bundle lean; (3) print CSS uses visibility-switch so the letterhead + order card print as one clean invoice page; (4) shop "Load more" considered and skipped — numbered pagination already covers it well.
+- Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged from round 3)
+- Next suggestions: (1) order-confirmation email (needs SMTP); (2) engraving/text personalization per item at checkout (like gift wrap pattern); (3) coupon usage counter already in KPIs — could add per-coupon conversion on Coupons tab; (4) admin orders CSV export; (5) 360° spin tab when GLB assets arrive
