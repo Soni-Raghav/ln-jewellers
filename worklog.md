@@ -206,3 +206,31 @@ Stage Summary:
 - Decisions: (1) gift wrap fee is per-order (not per-item) and untaxed — simplest correct default for a concierge-style service; (2) chart is dependency-free SVG (no recharts) to keep bundle lean; (3) print CSS uses visibility-switch so the letterhead + order card print as one clean invoice page; (4) shop "Load more" considered and skipped — numbered pagination already covers it well.
 - Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged from round 3)
 - Next suggestions: (1) order-confirmation email (needs SMTP); (2) engraving/text personalization per item at checkout (like gift wrap pattern); (3) coupon usage counter already in KPIs — could add per-coupon conversion on Coupons tab; (4) admin orders CSV export; (5) 360° spin tab when GLB assets arrive
+---
+Task ID: cron-r5
+Agent: webDevReview agent (round 5)
+Task: Status assessment + agent-browser QA + new features (engraving personalization, orders CSV export, coupon revenue analytics) + styling polish (sticky mobile buy bar, engraving preview plate)
+
+Work Log:
+- STATUS ASSESSMENT: dev server healthy (GET / 200, /api/health ok); git clean on main @3c8abc5; bun run lint 0 errors; tsc clean in src/ (only skills/ scaffolding noise); reviewed worklog rounds 1-4.
+- QA SWEEP (agent-browser, fresh session): home 3D hero, shop filters, product detail (variants/Q&A/size guide), cart, checkout, track order, admin login + all tabs (orders, coupons), footer sticky. Zero console/page errors. No regressions found -> per mandate, moved to new features.
+- NEW FEATURE — Hand-engraving personalization (FULL STACK, spec "engraving request"):
+  * prisma: Order.engravingText String? + Order.engravingFee Float @default(0); StoreSettings.engravingEnabled Boolean @default(true) + engravingFee Float @default(1500); db:push + client regen (dev server restarted via (setsid nohup bun run dev &) — STALE PRISMA CLIENT gotcha hit again: API returned settings without new fields until restart)
+  * Server-trust: POST /api/orders accepts engravingText (sanitized, 60 chars, must contain alnum); fee ALWAYS server-side (settings.engravingFee, 0 when disabled); total += engravingFee; persisted + returned; engraving silently dropped when admin disables the feature
+  * CheckoutView: "Hand engraving by our master karigar" card inside Finishing touches (hidden when disabled): input w/ 60-char live counter (aria-live), +fee, gold live PREVIEW PLATE (champagne gradient, serif italic uppercase "your inscription" — verified visually), gold-highlighted border when filled; summary "Engraving ₹1,500" row; PlacedOrder confirmation row; waOrderMessage passes engraving -> wa.me URL contains `Engraving ("A · R 14.02.2026"): ₹1,500` AND closing `Please engrave: "A · R 14.02.2026".` (intercepted + verified)
+  * Track order API/UI returns engraving -> totals row + gold "Hand-engraving request" banner (karigar placement note); admin OrdersManager detail: "Engrave: ..." gold callout in Ship-to + gold Engraving totals row
+  * Admin SettingsManager Commerce card: "Engraving fee (₹)" input + "Hand engraving" enable Switch; /api/admin/settings PATCH validates engravingFee + engravingEnabled (toggle tested true<->false via API, SETTINGS_UPDATE audit-logged)
+  * ProductView: "Personalise it — add hand engraving at checkout" hint (hidden when disabled/sold out)
+  * E2E ORDER VERIFIED: AUR-20261012-EOMBV {engravingText:"A · R 14.02.2026", engravingFee:1500, subtotal:56500, shipping:0, tax:1695, total:59695} — math exact; tracked via /#/track (banner + line shown)
+- NEW FEATURE — Admin orders CSV export: /api/admin/orders/export (requireAdmin, audit ORDERS_EXPORT) — 23 columns incl. customer/address/items summary/coupon/giftWrap/engraving/totals, RFC-safe quoting, orders-YYYY-MM-DD.csv; "Export CSV" button in OrdersManager toolbar (window.open); VERIFIED via authed curl (headers + rows correct)
+- NEW FEATURE — Coupon conversion analytics: /api/admin/coupons GET adds per-coupon orderCount (_count) + revenue (_sum total, CANCELLED excluded); CouponsManager gets 4-card summary strip (Savings given −₹8,940 / Coupon orders 2 / Revenue influenced ₹83,073 / Avg. coupon basket ₹41,537, gold icon badges + hover glow) + "Orders" + "Avg. basket" columns (AURELIA10 row: 2 · ₹41,537 · −₹8,940)
+- STYLING POLISH: sticky mobile buy bar on ProductView (lg:hidden, IntersectionObserver-free scroll/resize listener, shows when buy box scrolls past, thumb+name+price+variant+Add-to-bag, safe-area-inset padding, mr-14 clears WhatsApp float, active:scale press) — VERIFIED 390px SHOWN at bottom / HIDDEN at top; checkout summary item rows now show SKU (mono font); screenshots saved to download/ (sticky-buy-bar-mobile, checkout-engraving-section, admin-order-engraving, admin-coupons-analytics, mobile-engraving, track-engraving)
+- BUGS: (1) self-introduced regex typo `^^\d{6}$` in orders route caught + fixed immediately; (2) CouponsManager IIFE brace parsing error caught by lint, fixed; (3) stale Prisma client after db:push -> dev server restart required (recurring sandbox gotcha, documented in r3)
+- bun run lint -> 0 errors 0 warnings; bunx tsc --noEmit -> clean in src/; dev.log clean; committed b6c8323 on main (NOT pushed — still no GitHub credentials)
+
+Stage Summary:
+- Files created: src/app/api/admin/orders/export/route.ts
+- Files modified: prisma/schema.prisma, src/lib/{types,format}.ts, src/app/api/orders/route.ts, src/app/api/orders/[number]/route.ts, src/app/api/admin/{settings,coupons}/route.ts, src/components/storefront/{CheckoutView,TrackOrderView,ProductView}.tsx, src/components/admin/{OrdersManager,CouponsManager,SettingsManager}.tsx
+- Decisions: (1) engraving is per-order (like gift wrap) not per-item — karigar confirms placement manually; (2) 60-char single-line cap for hand engraving feasibility; (3) CSV export capped at 5000 orders per file; (4) coupon revenue excludes CANCELLED orders so avg-basket is meaningful
+- Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged)
+- Next suggestions: (1) per-item engraving (choose which piece gets inscribed) when multi-item orders need it; (2) order-confirmation email (needs SMTP); (3) admin dashboard engraving KPI (personalization attach-rate); (4) 360° spin when GLB assets arrive; (5) coupon per-order list view (which orders used which code)
