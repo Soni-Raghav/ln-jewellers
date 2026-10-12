@@ -332,3 +332,42 @@ Stage Summary:
 - Decisions: (1) Appointment.date is a YYYY-MM-DD string not DateTime — avoids TZ drift between the customer's chosen calendar day and the atelier's IST book (formatLongDate parses date-only strings at noon); (2) status flow is request->concierge-confirm (PENDING->CONFIRMED->COMPLETED, DECLINED/Reopen) matching the brand's high-touch model; (3) snapshot uses preserveDrawingBuffer on the product stage only (hero stage untouched) — minor VRAM cost, big UX win; (4) booking rate limit 5/30min aligns with contact/questions endpoints.
 - Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged since round 3)
 - Next suggestions: (1) confirmation emails for appointments/orders/stock-alerts once SMTP creds land (mailtos already prefilled in admin); (2) appointment slots could respect per-day capacity (prevent >N bookings per slot); (3) shareable snapshot -> Web Share API with file on mobile; (4) per-item engraving for multi-item orders; (5) 360° auto-spin capture for social when GLB assets arrive.
+
+---
+Task ID: cron-r9
+Agent: webDevReview agent (round 9)
+Task: Status assessment + agent-browser QA + new features (per-piece engraving full stack, gift-card messages, appointment slot capacity, 3D snapshot share) + styling polish
+
+Work Log:
+- STATUS ASSESSMENT: dev server healthy; git clean @bc2435b; lint 0/0; tsc clean in src/ (examples/+skills/ noise only). Reviewed worklog rounds 1-8.
+- QA SWEEP (agent-browser): home (3D hero, collections, arrivals render; full-page screenshot blanks are just lazy-reveal false positives), shop filters, product page, cart, checkout E2E order (AURELIA10 server-side discount verified, order AUR-...-ALC9M), admin dashboard 18 KPIs + chart, 3D jhumka stage. Zero console/page errors, no functional regressions. ONE BUG FOUND: hash-change navigation (browser back/forward, edited URL) kept the previous scroll position -> fixed.
+- BUGFIX — hashchange scroll reset: page.tsx onHash now rAF-scrolls to top after syncFromHash (in-app navigate() already did). VERIFIED: scroll 3000px on shop -> edit hash -> scrollY=0 on product view.
+- NEW FEATURE — Per-piece hand engraving (FULL STACK, replaces order-level single inscription):
+  * prisma: OrderItem.engravingText String? + db:push + prisma generate + server restart
+  * ProductView: collapsible "Add hand engraving" panel (PenLine, "+₹1,500 / piece" from settings, 60-char counter, live gold preview plate); addToCart carries engravingText; toast mentions engraving; resets on slug change
+  * store.ts: cart line identity = product+variant+engraving (engraved & plain pieces are separate lines); updateQuantity/removeFromCart accept engraving key; NEW setItemEngraving (edit/remove with duplicate-line merge)
+  * CartView: gold engraving chip with X (remove), engraving-aware qty/remove, karigar note under checkout CTA
+  * CheckoutView: order-level input REMOVED; "Finishing touches" shows per-line engraved pieces list + fee; summary "Engraving ×N ₹N"; payload sends per-item engravingText
+  * Server /api/orders: authoritative — sanitizes per-item text (≤60, alnum check), fee = engravedPieces × settings.engravingFee, engraved only when settings.engravingEnabled; Order.engravingText=null (legacy), engravingFee=total; items store their own text
+  * waOrderMessage: per-line "↳ engrave: …" + totals fallback line; confirmation page + TrackOrderView (item chip + fee row) + OrdersManager (item chip + "Hand engraving (per piece)" row) + CSV export ([engrave: …] in Items col) + dashboard engravingOrders now counts engravingFee>0 (covers both models)
+- NEW FEATURE — Gift message on the gift card (FULL STACK):
+  * prisma: Order.giftMessage String?
+  * CheckoutView: textarea appears when gift wrap checked (≤200 chars, counter, live note-card preview w/ wax-seal diamond); stored only when giftWrap true (server strips otherwise)
+  * Shown: checkout confirmation ("On the gift card" card), TrackOrderView (gold gradient note card), admin OrdersManager (gold callout in Ship-to), WhatsApp message ("Gift card: …"), CSV GiftMessage column
+- NEW FEATURE — Appointment slot capacity (FULL STACK, no overbooking):
+  * prisma: StoreSettings.appointmentSlotCapacity Int @default(2); admin Settings input (1-10) + PATCH clamps
+  * src/lib/appointments.ts: shared TIME_SLOTS + istToday (route.ts + booking form now import it)
+  * NEW GET /api/appointments/availability?date= → per-slot {slot, remaining, full} (PENDING+CONFIRMED counted)
+  * POST /api/appointments: capacity check → badRequest w/ fields.timeSlot ("fully booked… message us on WhatsApp")
+  * AppointmentBooking: fetches availability on date change, options show "— fully booked" (disabled) / "— 1 seat left", "Up to N guests per private slot" hint, toast if full slot chosen, graceful static-list fallback on fetch failure
+- NEW FEATURE — 3D snapshot share: ProductView stage chrome gains gold "Share" button → capture → File → navigator.canShare({files}) ? navigator.share : download PNG + open WhatsApp with product link + toast; AbortError (share-sheet dismiss) swallowed
+- STYLING POLISH: gold engraving chips (rounded-full, #D4AF37/8 bg, serif italic inscription) across cart/checkout/track/admin; note-card gift preview with wax-seal corner diamond; per-piece fee copy ("+₹1,500 / piece"); mobile 390px verified (panel full-width, 44px targets)
+- E2E VERIFIED (browser + DB): engraved order AUR-20261012-TGNCU (item.engravingText "I · S 2026", giftMessage stored, fee 1500, total 60195 ✓); WA prefill shows "↳ engrave"; track shows chip + note card; admin detail shows chip + gift callout; slot capacity: 2nd booking took last 3:30 PM seat, 3rd POST rejected, storefront option "3:30 PM IST — fully booked [disabled]"; share fallback toast; scroll fix
+- GETCHAS: (1) STALE PRISMA CLIENT 3rd recurrence — schema pushed + generate + "restart" at round start, yet order.create 500 "Unknown argument giftMessage" mid-round; root cause: setsid restart raced the system-held port 3000 (old server kept serving). Fix: pkill next/next-server THEN restart; documented again — always pkill-then-start for client-affecting changes. (2) agent-browser can't set controlled React date inputs (fill/native-setter both revert) — use _valueTracker.setValue('') + native setter + input event to drive React.
+
+Stage Summary:
+- Files created: src/app/api/appointments/availability/route.ts, src/lib/appointments.ts
+- Files modified: prisma/schema.prisma, src/lib/{types,store,format}.ts, src/app/page.tsx, src/app/api/orders/route.ts, src/app/api/orders/[number]/route.ts, src/app/api/admin/{dashboard,settings}/route.ts, src/app/api/admin/orders/export/route.ts, src/app/api/appointments/route.ts, src/components/storefront/{ProductView,CartView,CheckoutView,TrackOrderView,AppointmentBooking}.tsx, src/components/admin/{OrdersManager,SettingsManager}.tsx
+- Decisions: (1) engraving fee is per physical piece (qty × fee) — truthful to hand-crafting cost; (2) Order.engravingText kept as legacy (null on new orders) so old orders render unchanged; KPI uses fee>0; (3) cart identity includes engraving so a monogrammed ring and a plain one never merge; (4) gift message requires giftWrap (server strips orphans); (5) capacity counts PENDING+CONFIRMED only — DECLINED/COMPLETED free the slot.
+- Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged since round 3)
+- Next suggestions: (1) emails (order/appointment/restock confirmations) once SMTP lands; (2) appointment per-TYPE capacity (video vs visit); (3) engraving font/style choice (serif vs sans) + preview render; (4) 360° auto-spin capture for the 3D stage; (5) wishlist share sheet.
