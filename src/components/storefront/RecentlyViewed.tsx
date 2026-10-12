@@ -18,7 +18,7 @@ export interface RecentSnapshot {
   discountPercent: number;
 }
 
-const KEY = "aurelia-recent";
+const KEY = "ln-recent";
 
 export function pushRecent(item: RecentSnapshot) {
   if (typeof window === "undefined") return;

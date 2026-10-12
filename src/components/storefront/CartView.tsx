@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Minus, Plus, Trash2, ShoppingBag, MessageCircle, ArrowRight, Truck, PenLine, X } from "lucide-react";
 import { toast } from "sonner";
-import { formatINR, netPrice, waCartInquiry, engravingFontLabel } from "@/lib/format";
+import { formatINR, netPrice, waCartInquiry, engravingFontLabel, engravingFeeFor } from "@/lib/format";
 
 export default function CartView() {
   const cart = useApp((s) => s.cart);
@@ -89,7 +89,7 @@ export default function CartView() {
                         <p className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/8 px-2.5 py-1 text-[11px] text-[#7a611f]">
                           <PenLine className="h-3 w-3 shrink-0" aria-hidden />
                           <span className="truncate font-serif italic tracking-wider">“{item.engravingText}”</span>
-                          <span className="shrink-0 rounded-full bg-[#D4AF37]/15 px-1.5 text-[9px] uppercase tracking-wider">{engravingFontLabel(item.engravingFont)}</span>
+                          <span className="shrink-0 rounded-full bg-[#D4AF37]/15 px-1.5 text-[9px] uppercase tracking-wider">{engravingFontLabel(item.engravingFont)}{settings ? ` · +${formatINR(engravingFeeFor(settings, item.engravingFont))}/pc` : ""}</span>
                           <button
                             onClick={() => {
                               setItemEngraving(item.productId, item.variantId, item.engravingText, null);
@@ -152,7 +152,7 @@ export default function CartView() {
           {cart.some((i) => i.engravingText) && (
             <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-[#D4AF37]/8 px-3 py-2 text-[11px] leading-relaxed text-[#7a611f]">
               <PenLine className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
-              Engraved pieces are hand-finished by our karigar before dispatch — the engraving fee is added at checkout.
+              Engraved pieces are chased by hand before dispatch — each lettering hand carries its own fee, added at checkout.
             </p>
           )}
           {settings && (

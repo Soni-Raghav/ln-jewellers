@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Loader2, MessageSquare, Star, Trash2, X } from "lucide-react";
+import { Check, Loader2, MessageSquare, Star, ThumbsUp, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -193,6 +193,11 @@ export default function ReviewsManager() {
                           {r.title && <span className="font-medium">{r.title} — </span>}
                           <span className="text-[#5A544A]">{r.comment}</span>
                         </p>
+                        {(r.helpfulCount ?? 0) > 0 && (
+                          <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-[#D4AF37]/10 px-2 py-0.5 text-[10px] font-medium text-[#7A5E14]">
+                            <ThumbsUp className="size-3" aria-hidden /> {r.helpfulCount} helpful
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs text-[#8A8375]">{formatDate(r.createdAt)}</TableCell>
                       <TableCell className="pr-4">

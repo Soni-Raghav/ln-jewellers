@@ -34,6 +34,8 @@ const ContactView = dynamic(() => import("@/components/storefront/ContactView"),
 const FaqView = dynamic(() => import("@/components/storefront/FaqView"), { ssr: false });
 const PolicyView = dynamic(() => import("@/components/storefront/PolicyView"), { ssr: false });
 const TrackOrderView = dynamic(() => import("@/components/storefront/TrackOrderView"), { ssr: false });
+const InvoiceView = dynamic(() => import("@/components/storefront/InvoiceView"), { ssr: false });
+const AccountView = dynamic(() => import("@/components/storefront/AccountView"), { ssr: false });
 const AdminLoginView = dynamic(() => import("@/components/storefront/AdminLoginView"), { ssr: false });
 const AdminView = dynamic(() => import("@/components/admin/AdminView"), {
   ssr: false,
@@ -71,12 +73,27 @@ function ViewSkeleton({ hero, dark }: { hero?: boolean; dark?: boolean }) {
   );
 }
 
-export default function AureliaApp() {
+export default function LNJewellersApp() {
   const view = useApp((s) => s.view);
   const params = useApp((s) => s.params);
   const syncFromHash = useApp((s) => s.syncFromHash);
   const setSettings = useApp((s) => s.setSettings);
   const settings = useApp((s) => s.settings);
+  const setUser = useApp((s) => s.setUser);
+
+  // Restore the customer session from the httpOnly cookie (if any)
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d?.user) setUser(d.user);
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+  }, [setUser]);
 
   // Hash router bootstrap + listener
   useEffect(() => {
@@ -102,7 +119,7 @@ export default function AureliaApp() {
 
   // Dynamic document title per view
   useEffect(() => {
-    const brand = "Aurelia Jewels";
+    const brand = "LN Jewellers";
     const titles: Record<string, string> = {
       home: "Handcrafted 22K Gold Jewelry, Made in Jaipur",
       shop: "Shop All Jewelry",
@@ -116,6 +133,8 @@ export default function AureliaApp() {
       faq: "FAQ",
       policy: params.policy ? `${params.policy.charAt(0).toUpperCase()}${params.policy.slice(1)} Policy` : "Policies",
       track: "Track Order",
+      invoice: "Invoice",
+      account: "My Account",
       admin: "Admin Atelier",
       "admin-login": "Admin Sign In",
     };
@@ -148,6 +167,10 @@ export default function AureliaApp() {
         return <PolicyView />;
       case "track":
         return <TrackOrderView />;
+      case "invoice":
+        return <InvoiceView />;
+      case "account":
+        return <AccountView />;
       case "admin-login":
         return <AdminLoginView />;
       case "admin":

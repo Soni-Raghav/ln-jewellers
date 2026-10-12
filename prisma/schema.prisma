@@ -17,6 +17,7 @@ model User {
   role         String   @default("CUSTOMER") // CUSTOMER | ADMIN
   phone        String?
   active       Boolean  @default(true)
+  orders       Order[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -168,12 +169,15 @@ model Order {
   cancelRequested   Boolean   @default(false) // customer asked the concierge to cancel
   cancelReason      String? // why the customer wants to cancel
   cancelRequestedAt DateTime?
+  userId            String? // set when the order was placed by a signed-in customer
+  user              User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
   payments      Payment[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
   @@index([status])
   @@index([email])
+  @@index([userId])
   @@index([createdAt])
 }
 
@@ -251,6 +255,7 @@ model Review {
   title     String?
   comment   String
   approved  Boolean  @default(false)
+  helpfulCount Int   @default(0) // "was this helpful?" votes from other clients
   createdAt DateTime @default(now())
 
   @@index([productId, approved])
@@ -312,23 +317,25 @@ model Appointment {
 
 model StoreSettings {
   id               String   @id @default("singleton")
-  brandName        String   @default("Aurelia Jewels")
+  brandName        String   @default("LN Jewellers")
   tagline          String   @default("Handcrafted Luxury Jewelry")
   whatsappNumber   String   @default("919876543210")
-  email            String   @default("hello@aureliajewels.com")
+  email            String   @default("hello@lnjewellers.com")
   phone            String   @default("+91 98765 43210")
-  address          String   @default("Aurelia Atelier, 12 Heritage Lane, Johari Bazaar, Jaipur 302003, Rajasthan, India")
+  address          String   @default("LN Atelier, 12 Heritage Lane, Johari Bazaar, Jaipur 302003, Rajasthan, India")
   businessHours    String   @default("Mon – Sat · 10:00 AM – 7:30 PM IST · Sunday closed")
-  instagramUrl     String   @default("https://instagram.com/aureliajewels")
-  facebookUrl      String   @default("https://facebook.com/aureliajewels")
-  pinterestUrl     String   @default("https://pinterest.com/aureliajewels")
+  instagramUrl     String   @default("https://instagram.com/lnjewellers")
+  facebookUrl      String   @default("https://facebook.com/lnjewellers")
+  pinterestUrl     String   @default("https://pinterest.com/lnjewellers")
   youtubeUrl       String   @default("")
   shippingFee      Float    @default(199)
   freeShippingAbove Float   @default(50000)
   taxRatePercent   Float    @default(3)
   giftWrapFee      Float    @default(500)
   engravingEnabled Boolean  @default(true)
-  engravingFee     Float    @default(1500)
+  engravingFee     Float    @default(1500) // classic serif hand (base fee)
+  engravingFeeScript Float  @default(2500) // elegant script hand — flowing curves take the karigar longer
+  engravingFeeSans Float   @default(1800) // modern sans hand — deep clean cuts
   appointmentVisitCapacity Int @default(2) // max pending+confirmed atelier visits per slot per day
   appointmentVideoCapacity Int @default(2) // max pending+confirmed video consultations per slot per day
   aboutStory       String   @default("")

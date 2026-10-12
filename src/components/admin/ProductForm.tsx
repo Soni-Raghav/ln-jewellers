@@ -330,7 +330,7 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
               <Input
                 value={form.sku}
                 onChange={(e) => set("sku", e.target.value.toUpperCase())}
-                placeholder="AUR-RING-001"
+                placeholder="LN-RING-001"
                 className="border-[#E0D9C8] bg-white font-mono"
               />
             </Field>

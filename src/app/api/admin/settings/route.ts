@@ -36,6 +36,8 @@ export async function PATCH(req: Request) {
     if (body.giftWrapFee !== undefined) data.giftWrapFee = Math.max(0, toFloat(body.giftWrapFee, 500));
     if (body.engravingEnabled !== undefined) data.engravingEnabled = !!body.engravingEnabled;
     if (body.engravingFee !== undefined) data.engravingFee = Math.max(0, toFloat(body.engravingFee, 1500));
+    if (body.engravingFeeScript !== undefined) data.engravingFeeScript = Math.max(0, toFloat(body.engravingFeeScript, 2500));
+    if (body.engravingFeeSans !== undefined) data.engravingFeeSans = Math.max(0, toFloat(body.engravingFeeSans, 1800));
     if (body.appointmentVisitCapacity !== undefined) data.appointmentVisitCapacity = Math.min(10, Math.max(1, Math.round(toFloat(body.appointmentVisitCapacity, 2))));
     if (body.appointmentVideoCapacity !== undefined) data.appointmentVideoCapacity = Math.min(10, Math.max(1, Math.round(toFloat(body.appointmentVideoCapacity, 2))));
     if (body.razorpayEnabled !== undefined) data.razorpayEnabled = !!body.razorpayEnabled;

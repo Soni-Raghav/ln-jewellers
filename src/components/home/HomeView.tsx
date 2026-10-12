@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * HomeView — the full homepage for Aurelia Jewels (sections a–m).
+ * HomeView — the full homepage for LN Jewellers (sections a–m).
  * Footer is provided by the root shell — deliberately NOT rendered here.
  *
  * Data: 8 endpoints fetched once on mount via Promise.all with individual
@@ -321,7 +321,7 @@ export default function HomeView() {
   const gallery = (settings?.instagramGallery ?? []).slice(0, 8);
   const aboutExcerpt =
     settings?.aboutStory?.split("\n")[0] ??
-    "Aurelia began in 2016 at a two-bench workshop in Johari Bazaar, Jaipur — with one master karigar, a sheet of 22K gold and a stubborn belief that real luxury is made slowly.";
+    "LN Jewellers began in 2016 at a two-bench workshop in Johari Bazaar, Jaipur — with one master karigar, a sheet of 22K gold and a stubborn belief that real luxury is made slowly.";
   const waHref = settings ? waGeneralInquiry(settings) : "https://wa.me/";
 
   const bestUnavailable = (failed.best || failed.featured) && bestList.length === 0;
@@ -365,7 +365,7 @@ export default function HomeView() {
         | { success?: boolean; message?: string; error?: string }
         | null;
       if (!res.ok) throw new Error(json?.error || "Subscription failed. Please try again.");
-      toast.success(json?.message || "Welcome to the Aurelia circle.");
+      toast.success(json?.message || "Welcome to the LN Jewellers circle.");
       setEmail("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong. Please try again.");
@@ -869,7 +869,7 @@ export default function HomeView() {
             <SectionHeading
               align="left"
               dark
-              eyebrow="The Aurelia Story"
+              eyebrow="The LN Jewellers Story"
               title={
                 <blockquote className="font-serif text-3xl leading-snug md:text-5xl">
                   “Real luxury is{" "}
@@ -900,7 +900,7 @@ export default function HomeView() {
               <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#221E14]">
                 <SafeImg
                   src="/images/brand/artisan.png"
-                  alt="Aurelia master karigar at the bench in Jaipur"
+                  alt="LN Jewellers master karigar at the bench in Jaipur"
                   className="h-full w-full object-cover"
                 />
               </div>
@@ -921,7 +921,7 @@ export default function HomeView() {
                   <em className="italic text-[#D4AF37]">inherited</em>
                 </>
               }
-              subtitle="Words from the women who wear Aurelia — in their own handwriting, almost."
+              subtitle="Words from the women who wear LN Jewellers — in their own handwriting, almost."
             />
 
             <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -970,7 +970,7 @@ export default function HomeView() {
                     rel="noreferrer"
                     className="text-[#D4AF37] underline-offset-4 hover:underline"
                   >
-                    @aureliajewels
+                    @lnjewellers
                   </a>
                 </>
               }
@@ -984,12 +984,12 @@ export default function HomeView() {
                     href={settings?.instagramUrl || "https://instagram.com"}
                     target="_blank"
                     rel="noreferrer"
-                    aria-label={`Aurelia Jewels on Instagram, photo ${i + 1}`}
+                    aria-label={`LN Jewellers on Instagram, photo ${i + 1}`}
                     className="group relative block aspect-square overflow-hidden bg-[#F1E8D2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]/60"
                   >
                     <SafeImg
                       src={src}
-                      alt={`Aurelia Jewels Instagram post ${i + 1}`}
+                      alt={`LN Jewellers Instagram post ${i + 1}`}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     <span className="absolute inset-0 grid place-items-center bg-black/45 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
@@ -1034,7 +1034,7 @@ export default function HomeView() {
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-xl px-4 text-center md:px-8">
           <SectionHeading
-            eyebrow="The Aurelia Circle"
+            eyebrow="The LN Jewellers Circle"
             title={
               <>
                 First access,{" "}

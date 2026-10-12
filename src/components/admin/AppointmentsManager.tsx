@@ -329,7 +329,7 @@ export default function AppointmentsManager() {
                             </Button>
                           )}
                           <a
-                            href={`mailto:${a.email}?subject=${encodeURIComponent(`Your Aurelia Jewels appointment · ${formatLongDate(a.date)}`)}`}
+                            href={`mailto:${a.email}?subject=${encodeURIComponent(`Your LN Jewellers appointment · ${formatLongDate(a.date)}`)}`}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#6B655A] transition-colors hover:bg-[#D4AF37]/10 hover:text-[#A8862A]"
                             aria-label={`Email ${a.name} about the appointment`}
                             title="Email guest"

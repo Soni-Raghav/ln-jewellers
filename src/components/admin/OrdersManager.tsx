@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download, XCircle, ShieldCheck, Gift } from "lucide-react";
+import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download, XCircle, ShieldCheck, Gift, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
+import { useApp } from "@/lib/store";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,6 +58,7 @@ const STATUS_TABS = [
 ];
 
 export default function OrdersManager() {
+  const navigate = useApp((s) => s.navigate);
   const [qInput, setQInput] = useState("");
   const q = useDebounced(qInput, 350);
   const [status, setStatus] = useState("");
@@ -68,6 +70,13 @@ export default function OrdersManager() {
 
   const [detail, setDetail] = useState<OrderDTO | null>(null);
   const [cancelTarget, setCancelTarget] = useState<OrderDTO | null>(null);
+
+  /** Open the storefront tax-invoice view — the order API verifies the billing
+   *  email, which the admin already has on file, so the sheet renders directly. */
+  const onInvoice = (orderNumber: string, email: string) => {
+    setDetail(null);
+    navigate("invoice", { orderNumber, orderEmail: email });
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -434,6 +443,13 @@ export default function OrdersManager() {
                     </a>
                   </p>
                   <p className="text-[#5A544A]">{detail.phone}</p>
+                  <button
+                    type="button"
+                    onClick={() => onInvoice(detail.orderNumber, detail.email)}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 px-2.5 py-1 text-[11px] font-medium text-[#7A5E14] transition-colors hover:bg-[#D4AF37]/10"
+                  >
+                    <ReceiptText className="size-3" aria-hidden /> Open tax invoice
+                  </button>
                 </div>
                 <div className="rounded-md border border-[#F0EAD9] bg-[#FBF9F4] p-3 text-sm">
                   <p className="mb-1 text-[10px] uppercase tracking-[0.25em] text-[#8A8375]">Ship to</p>

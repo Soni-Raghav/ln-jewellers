@@ -3,8 +3,8 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 
-const SECRET = process.env.AUTH_SECRET || "aurelia-dev-secret-change-in-production-9f2c";
-export const SESSION_COOKIE = "aurelia_session";
+const SECRET = process.env.AUTH_SECRET || "ln-dev-secret-change-in-production-9f2c";
+export const SESSION_COOKIE = "ln_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 export interface SessionPayload {

@@ -1,5 +1,5 @@
 /**
- * Aurelia Jewels — database seed script.
+ * LN Jewellers — database seed script.
  * Run: bun run scripts/seed.ts
  * Idempotent: skips seeding when products already exist (use --force to reseed).
  */
@@ -34,12 +34,12 @@ async function main() {
   }
 
   // ---------- Admin user ----------
-  const adminEmail = process.env.ADMIN_EMAIL || "admin@aureliajewels.com";
-  const adminPassword = process.env.ADMIN_PASSWORD || "Aurelia@Admin1";
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@lnjewellers.com";
+  const adminPassword = process.env.ADMIN_PASSWORD || "LN@Admin1";
   const passwordHash = await bcrypt.hash(adminPassword, 10);
   await db.user.upsert({
     where: { email: adminEmail },
-    create: { email: adminEmail, name: "Aurelia Admin", passwordHash, role: "ADMIN" },
+    create: { email: adminEmail, name: "LN Jewellers Admin", passwordHash, role: "ADMIN" },
     update: { passwordHash, role: "ADMIN" },
   });
   await db.user.upsert({
@@ -107,7 +107,7 @@ async function main() {
 
   const P: SeedProduct[] = [
     {
-      sku: "AUR-RNG-001", slug: "surya-solitaire-ring", name: "Surya Solitaire Ring",
+      sku: "LN-RNG-001", slug: "surya-solitaire-ring", name: "Surya Solitaire Ring",
       short: "A radiant 0.5ct diamond cradled in hand-burnished 22K gold.",
       desc: "The Surya — our sun — is the ring that started a thousand love stories. A brilliant-cut solitaire sits in a six-prong crown raised on a hand-burnished 22K gold band, designed to catch light from every angle. Each ring is finished over 40 hours by a single master karigar and individually inspected under 10x loupe before it leaves our atelier.",
       price: 189000, discount: 10, categoryId: catRings.id, collectionId: colHeritage.id,
@@ -123,7 +123,7 @@ async function main() {
       ],
     },
     {
-      sku: "AUR-RNG-002", slug: "meenakari-heritage-ring", name: "Meenakari Heritage Ring",
+      sku: "LN-RNG-002", slug: "meenakari-heritage-ring", name: "Meenakari Heritage Ring",
       short: "Temple-inspired filigree with a Burma ruby heart.",
       desc: "A love letter to Jaipur's meenakari tradition. Delicate gold filigree petals bloom around a vivacious Burma ruby, with hand-cut engraving across the shoulders. Worn by brides and collectors alike — this is heritage you can hold.",
       price: 74500, categoryId: catRings.id, collectionId: colHeritage.id,
@@ -134,7 +134,7 @@ async function main() {
       variants: [{ name: "Size 7", size: "7", delta: 0, stock: 2 }, { name: "Size 8", size: "8", delta: 0, stock: 1 }],
     },
     {
-      sku: "AUR-RNG-003", slug: "eterna-whisper-band", name: "Eterna Whisper Band",
+      sku: "LN-RNG-003", slug: "eterna-whisper-band", name: "Eterna Whisper Band",
       short: "The everyday 18K gold band with a mirror-brushed finish.",
       desc: "Understated, weightless, eternal. The Eterna band is brushed to a soft satin glow and comfort-fit for 24/7 wear. Stack it, gift it, or make it your quiet signature.",
       price: 32900, categoryId: catRings.id, collectionId: colMinimal.id,
@@ -144,7 +144,7 @@ async function main() {
       variants: [{ name: "Size 6", size: "6", delta: 0, stock: 4 }, { name: "Size 7", size: "7", delta: 0, stock: 4 }, { name: "Size 8", size: "8", delta: 0, stock: 4 }],
     },
     {
-      sku: "AUR-NCK-001", slug: "kalash-emerald-pendant", name: "Kalash Emerald Pendant",
+      sku: "LN-NCK-001", slug: "kalash-emerald-pendant", name: "Kalash Emerald Pendant",
       short: "A teardrop Zambian emerald suspended on a fine gold chain.",
       desc: "One perfect drop of green. The Kalash pendant sets a hand-selected Zambian emerald in a minimal 22K gold bezel that lets the stone do all the talking. Arrives on an adjustable 16–18 inch chain.",
       price: 96000, discount: 5, categoryId: catNecklaces.id, collectionId: colMinimal.id,
@@ -155,7 +155,7 @@ async function main() {
       variants: [{ name: "16 inch chain", size: "16in", delta: 0, stock: 3 }, { name: "18 inch chain", size: "18in", delta: 1500, stock: 2 }],
     },
     {
-      sku: "AUR-NCK-002", slug: "devi-temple-choker", name: "Devi Temple Choker",
+      sku: "LN-NCK-002", slug: "devi-temple-choker", name: "Devi Temple Choker",
       short: "South-Indian temple work in stately 22K gold.",
       desc: "The Devi choker reimagines classical temple jewellery with architectural repoussé panels of Lakshmi motifs, finished with detachable pearl drops. A ceremony in itself — heirloom weight, heirloom presence.",
       price: 342000, categoryId: catNecklaces.id, collectionId: colBridal.id,
@@ -166,7 +166,7 @@ async function main() {
       variants: [{ name: "Standard fit", delta: 0, stock: 2 }],
     },
     {
-      sku: "AUR-NCK-003", slug: "gauri-bridal-layered-set", name: "Gauri Bridal Layered Set",
+      sku: "LN-NCK-003", slug: "gauri-bridal-layered-set", name: "Gauri Bridal Layered Set",
       short: "A three-layer bridal treasury with matching jhumkas.",
       desc: "For the bride who wants the full gilded moment: a rani haar, a mid-layer temple necklace and a close choker, completed with twin jhumkas. Each layer can be worn separately long after the wedding — twenty pieces of jewellery in one.",
       price: 875000, categoryId: catNecklaces.id, collectionId: colBridal.id,
@@ -176,7 +176,7 @@ async function main() {
       tags: ["bridal", "set", "layered", "made-to-order"],
     },
     {
-      sku: "AUR-EAR-001", slug: "noor-diamond-studs", name: "Noor Diamond Studs",
+      sku: "LN-EAR-001", slug: "noor-diamond-studs", name: "Noor Diamond Studs",
       short: "Light in its purest form — 0.3ct total diamond studs.",
       desc: "Noor means light. These everyday solitaire studs pair matched brilliant diamonds with secure screw-back closures in 18K gold — the first piece you reach for and the last one you take off.",
       price: 64800, discount: 8, categoryId: catEarrings.id, collectionId: colMinimal.id,
@@ -186,7 +186,7 @@ async function main() {
       variants: [{ name: "Single pair", delta: 0, stock: 8 }],
     },
     {
-      sku: "AUR-EAR-002", slug: "raag-jhumka-earrings", name: "Raag Jhumka Earrings",
+      sku: "LN-EAR-002", slug: "raag-jhumka-earrings", name: "Raag Jhumka Earrings",
       short: "Classical jhumkas with a cascade of seed pearls.",
       desc: "Every movement becomes music. The Raag jhumkas pair hand-domed gold bells with a delicate fringe of seed pearls that sway with every step. Light enough for all-night celebrations.",
       price: 88500, categoryId: catEarrings.id, collectionId: colHeritage.id,
@@ -197,7 +197,7 @@ async function main() {
       variants: [{ name: "Standard", delta: 0, stock: 3 }, { name: "With ear chains", delta: 3500, stock: 1 }],
     },
     {
-      sku: "AUR-EAR-003", slug: "luna-twist-hoops", name: "Luna Twist Hoops",
+      sku: "LN-EAR-003", slug: "luna-twist-hoops", name: "Luna Twist Hoops",
       short: "Sculptural rope-twist hoops in polished 18K.",
       desc: "A quiet statement. Luna hoops twist light along their rope-textured length, hinged for effortless wear. Day-to-night gold that flatters everything.",
       price: 41200, categoryId: catEarrings.id, collectionId: colMinimal.id,
@@ -207,7 +207,7 @@ async function main() {
       variants: [{ name: "Standard", delta: 0, stock: 10 }],
     },
     {
-      sku: "AUR-BNG-001", slug: "triveni-bangle-trio", name: "Triveni Bangle Trio",
+      sku: "LN-BNG-001", slug: "triveni-bangle-trio", name: "Triveni Bangle Trio",
       short: "Three engraved bangles, one harmonic stack.",
       desc: "Three is auspicious. The Triveni trio layers two finely engraved kadas with a plain mirror-polish bangle — designed to chime softly and stack beautifully. Sold as a set of three.",
       price: 156000, discount: 5, categoryId: catBracelets.id, collectionId: colHeritage.id,
@@ -217,7 +217,7 @@ async function main() {
       variants: [{ name: "2.4 size", size: "2.4", delta: 0, stock: 1 }, { name: "2.6 size", size: "2.6", delta: 0, stock: 1 }, { name: "2.8 size", size: "2.8", delta: 6000, stock: 1 }],
     },
     {
-      sku: "AUR-BRC-002", slug: "sutra-handchain-bracelet", name: "Sutra Handmade Chain Bracelet",
+      sku: "LN-BRC-002", slug: "sutra-handchain-bracelet", name: "Sutra Handmade Chain Bracelet",
       short: "Hand-linked gold chain with a signature heart clasp.",
       desc: "Every link soldered by hand, every join polished invisible. The Sutra bracelet is our karigars' daily meditation — and the heart clasp is pure poetry.",
       price: 52800, categoryId: catBracelets.id, collectionId: colArtisan.id,
@@ -228,7 +228,7 @@ async function main() {
       variants: [{ name: "7.5 inch", size: "7.5in", delta: 0, stock: 3 }, { name: "8 inch", size: "8in", delta: 4200, stock: 2 }],
     },
     {
-      sku: "AUR-PND-004", slug: "bhaav-hammered-ruby-pendant", name: "Bhaav Hammered Ruby Pendant",
+      sku: "LN-PND-004", slug: "bhaav-hammered-ruby-pendant", name: "Bhaav Hammered Ruby Pendant",
       short: "One-of-one hammered gold with a raw ruby soul. Only 1 ever made.",
       desc: "Bhaav — feeling, emotion. A single pendant hammered and chased entirely by hand, its surface holding the memory of every hammer fall, set with an untreated star ruby. This is a one-of-a-kind piece; when it's gone, it's gone.",
       price: 67300, categoryId: catNecklaces.id, collectionId: colArtisan.id,
@@ -238,7 +238,7 @@ async function main() {
       tags: ["one-of-a-kind", "handmade", "ruby", "artisan"],
     },
     {
-      sku: "AUR-RNG-004", slug: "aurelia-signet-ring", name: "Aurelia Signet Ring",
+      sku: "LN-RNG-004", slug: "ln-signet-ring", name: "LN Signet Ring",
       short: "A modern heirloom signet ready for your monogram.",
       desc: "The classic signet, softened. A gently domed oval face in heavy 18K gold awaits your engraver's touch — we offer complimentary monogram engraving on request via WhatsApp.",
       price: 56500, categoryId: catRings.id, collectionId: colMinimal.id,
@@ -248,7 +248,7 @@ async function main() {
       variants: [{ name: "Size 7", size: "7", delta: 0, stock: 3 }, { name: "Size 9", size: "9", delta: 0, stock: 2 }, { name: "Size 11", size: "11", delta: 0, stock: 2 }],
     },
     {
-      sku: "AUR-EAR-004", slug: "ganga-cascade-earrings", name: "Ganga Cascade Earrings",
+      sku: "LN-EAR-004", slug: "ganga-cascade-earrings", name: "Ganga Cascade Earrings",
       short: "Waterfall gold strands for celebratory nights.",
       desc: "Liquid gold. Nine hand-polished strands cascade from a sculpted crest — designed to catch candlelight at every turn of the head. Statement weight without the strain.",
       price: 121000, categoryId: catEarrings.id, collectionId: colBridal.id,
@@ -319,7 +319,7 @@ async function main() {
     if (p) await db.review.create({ data: { productId: p.id, name: r.name, rating: r.rating, title: r.title, comment: r.comment, approved: r.approved } });
   }
   await db.review.create({
-    data: { productId: bySlug.get("luna-twist-hoops")!.id, name: "Tanya K.", rating: 5, title: "Obsessed", comment: "Third purchase from Aurelia this year. Consistency is their real luxury.", approved: false },
+    data: { productId: bySlug.get("luna-twist-hoops")!.id, name: "Tanya K.", rating: 5, title: "Obsessed", comment: "Third purchase from LN Jewellers this year. Consistency is their real luxury.", approved: false },
   });
   console.log("✓ Reviews");
 
@@ -328,7 +328,7 @@ async function main() {
   const noor = bySlug.get("noor-diamond-studs")!;
   const order1 = await db.order.create({
     data: {
-      orderNumber: "AUR-20250101-DEMO1",
+      orderNumber: "LN-20250101-DEMO1",
       customerName: "Ananya Sharma", email: "ananya@example.com", phone: "+91 98200 11223",
       address: "14 Marine Drive, Apartment 3B", city: "Mumbai", state: "Maharashtra", pincode: "400020",
       subtotal: 170100, shipping: 0, tax: 5103, total: 175203,
@@ -338,7 +338,7 @@ async function main() {
   });
   const order2 = await db.order.create({
     data: {
-      orderNumber: "AUR-20250102-DEMO2",
+      orderNumber: "LN-20250102-DEMO2",
       customerName: "Kavya Nair", email: "kavya@example.com", phone: "+91 98450 55667",
       address: "22 Brigade Road", city: "Bengaluru", state: "Karnataka", pincode: "560025",
       subtotal: 59616, shipping: 199, tax: 1788, total: 61603,
@@ -385,7 +385,7 @@ async function main() {
     create: {
       id: "singleton",
       aboutStory:
-        "Aurelia began in 2016 at a two-bench workshop in Johari Bazaar, Jaipur — with one master karigar, a sheet of 22K gold and a stubborn belief that real luxury is made slowly.\n\nToday our atelier spans twelve artisans, but nothing about our process has rushed. Every piece is still drawn by hand, filed by hand, set by hand and inspected under a loupe before it earns the Aurelia name. We buy our gold fromrefiners certified by the Responsible Jewellery Council and our gemstones from family dealers we have known for decades.\n\nWe don't do fast fashion and we don't do inflated making charges. We do jewellery meant to outlive trends — and us.",
+        "LN Jewellers began in 2016 at a two-bench workshop in Johari Bazaar, Jaipur — with one master karigar, a sheet of 22K gold and a stubborn belief that real luxury is made slowly.\n\nToday our atelier spans twelve artisans, but nothing about our process has rushed. Every piece is still drawn by hand, filed by hand, set by hand and inspected under a loupe before it earns the LN Jewellers name. We buy our gold fromrefiners certified by the Responsible Jewellery Council and our gemstones from family dealers we have known for decades.\n\nWe don't do fast fashion and we don't do inflated making charges. We do jewellery meant to outlive trends — and us.",
       missionVision:
         "Mission: To make heirloom-quality handcrafted gold jewellery accessible with radical transparency — honest weights, hallmarked purity and making charges you can actually understand.\n\nVision: A world where every woman owns at least one piece of jewellery that tells her story, made by hands that were paid and treated with dignity.",
       shippingPolicy:
@@ -393,9 +393,9 @@ async function main() {
       returnsPolicy:
         "We accept returns of unworn, unengraved pieces in original packaging within 30 days of delivery for a full refund or exchange.\n\n• Refunds are processed to source within 5–7 working days of QC receipt.\n• Made-to-order and bespoke pieces are exchange-only.\n• Engraved and resized pieces are exchange-only for gold value.\n• To raise a return, message us on WhatsApp with your order number — we arrange a complimentary insured pickup.",
       privacyPolicy:
-        "We collect only what we need to craft, ship and care for your jewellery: your name, contact details, addresses and order history.\n\n• We never sell or rent your data. Ever.\n• Payment details are handled by our PCI-DSS compliant payment partners; we never see or store card numbers.\n• WhatsApp messages are used only to service your orders and enquiries.\n• You may request a copy or deletion of your data anytime at hello@aureliajewels.com.",
+        "We collect only what we need to craft, ship and care for your jewellery: your name, contact details, addresses and order history.\n\n• We never sell or rent your data. Ever.\n• Payment details are handled by our PCI-DSS compliant payment partners; we never see or store card numbers.\n• WhatsApp messages are used only to service your orders and enquiries.\n• You may request a copy or deletion of your data anytime at hello@lnjewellers.com.",
       termsPolicy:
-        "By using this website you agree to these terms.\n\n• All prices are in INR and include GST as shown at checkout. Gold prices are locked at order confirmation.\n• Product photography is illustrative; natural gemstones vary slightly in tone — that is their nature, not a defect.\n• Hallmark weights may vary ±0.20g from listed weight; you are billed on actual hallmark weight, never more.\n• All designs remain the intellectual property of Aurelia Jewels.\n• Disputes are subject to the exclusive jurisdiction of courts in Jaipur, Rajasthan.",
+        "By using this website you agree to these terms.\n\n• All prices are in INR and include GST as shown at checkout. Gold prices are locked at order confirmation.\n• Product photography is illustrative; natural gemstones vary slightly in tone — that is their nature, not a defect.\n• Hallmark weights may vary ±0.20g from listed weight; you are billed on actual hallmark weight, never more.\n• All designs remain the intellectual property of LN Jewellers.\n• Disputes are subject to the exclusive jurisdiction of courts in Jaipur, Rajasthan.",
       faq: JSON.stringify(faq),
       testimonials: JSON.stringify(testimonials),
       instagramGallery: JSON.stringify(gallery),

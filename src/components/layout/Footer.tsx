@@ -12,7 +12,7 @@ export default function Footer() {
   if (isAdminArea) return null;
 
   const year = new Date().getFullYear();
-  const brand = settings?.brandName || "Aurelia Jewels";
+  const brand = settings?.brandName || "LN Jewellers";
 
   const shopLinks = [
     { label: "All Jewelry", action: () => navigate("shop") },
@@ -29,6 +29,7 @@ export default function Footer() {
     { label: "Contact", action: () => navigate("contact") },
     { label: "FAQ", action: () => navigate("faq") },
     { label: "Track Order", action: () => navigate("track") },
+    { label: "My Account", action: () => navigate("account") },
     { label: "Admin Atelier", action: () => navigate("admin") },
   ];
 
@@ -51,8 +52,8 @@ export default function Footer() {
               <Gem className="h-4 w-4 -rotate-45 text-[#D4AF37]" strokeWidth={1.5} />
             </span>
             <span className="flex flex-col leading-none">
-              <span className="font-serif text-xl">{brand}</span>
-              <span className="text-[9px] uppercase tracking-[0.4em] text-[#D4AF37]/80">Jewels</span>
+              <span className="font-serif text-xl">LN</span>
+              <span className="text-[9px] uppercase tracking-[0.4em] text-[#D4AF37]/80">Jewellers</span>
             </span>
           </div>
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-[#FAF7F0]/60">
@@ -119,7 +120,7 @@ export default function Footer() {
             </li>
             <li className="flex gap-2.5">
               <Mail className="mt-0.5 h-4 w-4 shrink-0 text-[#D4AF37]/70" />
-              <a href={`mailto:${settings?.email || "hello@aureliajewels.com"}`} className="transition-colors hover:text-[#E6C87A]">{settings?.email || "hello@aureliajewels.com"}</a>
+              <a href={`mailto:${settings?.email || "hello@lnjewellers.com"}`} className="transition-colors hover:text-[#E6C87A]">{settings?.email || "hello@lnjewellers.com"}</a>
             </li>
             <li className="flex gap-2.5"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#D4AF37]/70" /><span>{settings?.businessHours || "Mon – Sat · 10 AM – 7:30 PM"}</span></li>
           </ul>
@@ -137,7 +138,7 @@ export default function Footer() {
 
       <div className="border-t border-[#D4AF37]/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-5 text-[11px] tracking-wide text-[#FAF7F0]/40 sm:flex-row sm:px-6 lg:px-8">
-          <p>© {year} {brand}. All designs are the intellectual property of {brand}.</p>
+          <p>{`© ${year} ${brand}. All designs are the intellectual property of ${brand}.`}</p>
           <p className="uppercase tracking-[0.25em]">Crafted with devotion in Jaipur ◆ BIS Hallmarked</p>
         </div>
       </div>

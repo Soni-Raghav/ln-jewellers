@@ -52,7 +52,7 @@ export default function AdminLoginView() {
             <span className="mx-auto mb-4 grid h-14 w-14 rotate-45 place-items-center border border-[#D4AF37]/60">
               <Gem className="h-6 w-6 -rotate-45 text-[#D4AF37]" strokeWidth={1.4} />
             </span>
-            <h1 className="font-serif text-2xl text-[#FAF7F0]">Aurelia Atelier</h1>
+            <h1 className="font-serif text-2xl text-[#FAF7F0]">LN Atelier</h1>
             <p className="mt-1 text-[11px] uppercase tracking-[0.3em] text-[#D4AF37]/70">Admin access</p>
           </div>
           <form onSubmit={submit} className="space-y-4">
@@ -63,7 +63,7 @@ export default function AdminLoginView() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-11 border-[#D4AF37]/30 bg-[#0A0A0A] text-[#FAF7F0] placeholder:text-[#FAF7F0]/25"
-                placeholder="admin@aureliajewels.com"
+                placeholder="admin@lnjewellers.com"
                 autoComplete="username"
                 required
               />

@@ -10,9 +10,9 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket, Gift, PenLine, Sparkles } from "lucide-react";
+import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket, Gift, PenLine, Sparkles, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
-import { formatINR, netPrice, waOrderMessage, engravingFontLabel } from "@/lib/format";
+import { formatINR, netPrice, waOrderMessage, engravingFontLabel, engravingTotals, engravingFeeFor } from "@/lib/format";
 import type { CartItem, StoreSettingsDTO } from "@/lib/types";
 
 interface PlacedOrder {
@@ -41,8 +41,19 @@ export default function CheckoutView() {
   const clearCart = useApp((s) => s.clearCart);
   const navigate = useApp((s) => s.navigate);
   const settings = useApp((s) => s.settings);
+  const user = useApp((s) => s.user);
 
-  const [form, setForm] = useState({ customerName: "", email: "", phone: "", address: "", city: "", state: "", pincode: "", notes: "" });
+  // Signed-in members start with their details already on file
+  const [form, setForm] = useState(() => ({
+    customerName: user?.name ?? "",
+    email: user?.email ?? "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+    notes: "",
+  }));
   const [fields, setFields] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [method, setMethod] = useState<"WHATSAPP" | "RAZORPAY">("WHATSAPP");
@@ -121,6 +132,13 @@ export default function CheckoutView() {
         </div>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button variant="outline" className="border-[#D4AF37]/50" onClick={() => navigate("track")}>Track this order</Button>
+          <Button
+            variant="outline"
+            className="border-[#D4AF37]/50 text-[#7a611f] hover:bg-[#D4AF37]/10"
+            onClick={() => navigate("invoice", { orderNumber: placed.orderNumber, orderEmail: form.email })}
+          >
+            <ReceiptText className="mr-2 h-4 w-4" /> View invoice
+          </Button>
           <Button className="bg-[#0A0A0A] text-[#FAF7F0] hover:bg-[#171717]" onClick={() => navigate("shop")}>Continue shopping</Button>
         </div>
       </div>
@@ -142,8 +160,9 @@ export default function CheckoutView() {
   const taxRate = settings?.taxRatePercent ?? 3;
   const giftWrapFee = giftWrap ? (settings?.giftWrapFee ?? 0) : 0;
   const engravingEnabled = settings ? settings.engravingEnabled !== false : true;
-  const engravedPieces = engravingEnabled ? cart.reduce((n, i) => n + (i.engravingText ? i.quantity : 0), 0) : 0;
-  const engravingFee = engravedPieces * (settings?.engravingFee ?? 0);
+  const { pieces: engravedPieces, fee: engravingFee } = engravingEnabled
+    ? engravingTotals(cart, settings)
+    : { pieces: 0, fee: 0 };
   const couponDiscount = appliedCoupon?.discountAmount ?? 0;
   const tax = Math.round(((subtotal - couponDiscount) * taxRate) / 100);
   const total = subtotal - couponDiscount + shipping + tax + giftWrapFee + engravingFee;
@@ -369,7 +388,7 @@ export default function CheckoutView() {
                       {engravedPieces} {engravedPieces === 1 ? "piece" : "pieces"} · {formatINR(engravingFee)}
                     </span>
                   ) : (
-                    <span className="ml-auto text-xs text-muted-foreground">{settings ? `+${formatINR(settings.engravingFee)} / piece` : ""}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{settings ? `from +${formatINR(settings.engravingFee)} / piece` : ""}</span>
                   )}
                 </div>
                 {cart.some((i: CartItem) => i.engravingText) ? (
@@ -381,7 +400,7 @@ export default function CheckoutView() {
                           <p className="truncate text-xs font-medium">{i.name}{i.variantName ? ` · ${i.variantName}` : ""} × {i.quantity}</p>
                           <p className="truncate font-serif text-xs italic tracking-wider text-[#7a611f]">“{i.engravingText}”</p>
                         </div>
-                        <span className="shrink-0 rounded-full bg-[#D4AF37]/12 px-2 py-0.5 text-[9px] uppercase tracking-wider text-[#7a611f]">{engravingFontLabel(i.engravingFont)}</span>
+                        <span className="shrink-0 rounded-full bg-[#D4AF37]/12 px-2 py-0.5 text-[9px] uppercase tracking-wider text-[#7a611f]">{engravingFontLabel(i.engravingFont)} · +{formatINR(i.quantity * engravingFeeFor(settings, i.engravingFont))}</span>
                       </li>
                     ))}
                   </ul>
@@ -433,7 +452,7 @@ export default function CheckoutView() {
         </div>
 
         {/* summary */}
-        <aside className="h-fit rounded-xl border border-[#D4AF37]/25 bg-white p-6 lg:sticky lg:top-32">
+        <aside className="h-fit rounded-xl border border-[#D4AF37]/25 bg-white p-6 lg:sticky lg:top-32 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto scrollbar-elegant">
           <p className="text-[10px] uppercase tracking-[0.35em] text-[#A8862A]">Almost yours</p>
           <h2 className="mt-1 font-serif text-xl">Your order</h2>
           <div className="mt-4 max-h-60 space-y-3 overflow-y-auto pr-1 scrollbar-elegant">
@@ -483,7 +502,7 @@ export default function CheckoutView() {
                 value={couponInput}
                 onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
-                placeholder="AURELIA10"
+                placeholder="LN10"
                 disabled={!!appliedCoupon}
                 className="h-10 border-[#D4AF37]/40 bg-white font-mono text-sm uppercase"
                 aria-label="Coupon code"
@@ -502,7 +521,7 @@ export default function CheckoutView() {
               <p className={`mt-2 text-xs ${couponMsg.tone === "ok" ? "text-emerald-700" : "text-destructive"}`}>{couponMsg.text}</p>
             )}
             {!couponMsg && !appliedCoupon && (
-              <p className="mt-2 text-[11px] text-muted-foreground">Launch offers: try <span className="font-mono">AURELIA10</span> on orders above ₹25,000.</p>
+              <p className="mt-2 text-[11px] text-muted-foreground">Launch offers: try <span className="font-mono">LN10</span> on orders above ₹25,000.</p>
             )}
           </div>
           {error && <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}

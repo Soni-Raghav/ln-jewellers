@@ -9,7 +9,11 @@ type ProductWithRelations = Prisma.ProductGetPayload<{
     variants: true;
     reviews: { where: { approved: true }, select: { rating: true } };
   };
-}>;
+}> & {
+  // List endpoints select just {rating}; the detail endpoint includes full
+  // approved review rows. Both must serialize through this function.
+  reviews?: Array<Prisma.ProductGetPayload<{ include: { reviews: true } }>["reviews"][number] | { rating: number }>;
+};
 
 export function serializeProduct(p: ProductWithRelations): Product {
   const images = parseJsonArray<string>(p.images);
@@ -17,12 +21,17 @@ export function serializeProduct(p: ProductWithRelations): Product {
   const rating = reviews.length
     ? Math.round((reviews.reduce((n, r) => n + r.rating, 0) / reviews.length) * 10) / 10
     : undefined;
+  // Only the detail endpoint carries full review rows (they have a comment);
+  // list endpoints get rating-only rows which must NOT leak as `reviews`.
+  const detailed = reviews.length > 0 && "comment" in reviews[0];
   return {
     ...p,
     images,
     tags: parseJsonArray<string>(p.tags),
     rating,
     reviewCount: reviews.length,
-    reviews: undefined,
+    ...(detailed
+      ? { reviews: reviews as unknown as Product["reviews"] }
+      : { reviews: undefined }),
   } as unknown as Product;
 }

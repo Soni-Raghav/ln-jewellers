@@ -59,3 +59,19 @@ server.log
 # agent handover artifacts
 /agent-ctx/
 tool-results/
+
+# env template IS committed (no secrets); real .env* stays ignored
+!.env.example
+
+# agent QA artifacts (screenshots, pdfs)
+/download/
+
+# sandbox plumbing (not part of the product)
+/.zscripts/
+/tests/
+/examples/
+/mini-services/
+/Caddyfile
+
+# generated at build time by scripts/use-postgres-schema.mjs
+/prisma/schema.postgres.prisma

@@ -3,6 +3,7 @@ import { handle, ok, badRequest, tooMany, isEmail, isNonEmpty, isPhone, sanitize
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { formatINR } from "@/lib/format";
 import { validateCoupon } from "@/lib/coupons";
+import { getSession } from "@/lib/auth";
 import { Prisma } from "@prisma/client";
 
 interface IncomingItem {
@@ -17,7 +18,7 @@ function generateOrderNumber(): string {
   const d = new Date();
   const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
   const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
-  return `AUR-${ymd}-${rand}`;
+  return `LN-${ymd}-${rand}`;
 }
 
 export async function POST(req: Request) {
@@ -155,23 +156,36 @@ export async function POST(req: Request) {
     const giftWrapFee = giftWrap ? Math.max(0, settings.giftWrapFee ?? 0) : 0;
     const finalGiftMessage = giftWrap ? giftMessage : "";
     const engravingEnabled = settings.engravingEnabled !== false;
-    // Per-piece engraving: each engraved unit is hand-chased by the karigar, so the
-    // atelier's fee applies per engraved piece (line quantity × fee).
+    // Per-piece engraving: each engraved unit is hand-chased by the karigar, and the
+    // atelier prices each lettering hand separately (script's flowing curves take
+    // longer than the classic serif). Fee = Σ per line (qty × fee-for-its-hand).
     let engravedPieces = 0;
+    let engravingFee = 0;
     if (engravingEnabled) {
       // `lines` is built 1:1 from `incoming`, so index mapping is exact — matching by
       // product+variant+font would be ambiguous and could drop an inscription.
+      const feeFor = (font: string): number => {
+        const base = Math.max(0, settings.engravingFee ?? 0);
+        if (font === "SCRIPT") return Math.max(0, settings.engravingFeeScript ?? base);
+        if (font === "SANS") return Math.max(0, settings.engravingFeeSans ?? base);
+        return base;
+      };
       incoming.forEach((item, idx) => {
         if (item.engravingText) {
           const line = lines[idx];
           line.engravingText = item.engravingText;
           line.engravingFont = item.engravingFont;
           engravedPieces += line.quantity;
+          engravingFee += line.quantity * feeFor(item.engravingFont);
         }
       });
     }
-    const engravingFee = engravedPieces * Math.max(0, settings.engravingFee ?? 0);
     const total = subtotal - couponDiscount + shipping + tax + giftWrapFee + engravingFee;
+
+    // Signed-in customers get their orders linked to their account, so the
+    // account area can list them without email verification.
+    const session = await getSession();
+    const userId = session?.sub ?? null;
 
     // ---- Atomic transaction: create order + decrement stock safely ----
     const orderNumber = generateOrderNumber();
@@ -200,6 +214,7 @@ export async function POST(req: Request) {
             orderNumber,
             customerName,
             email,
+            userId,
             phone,
             address,
             city,

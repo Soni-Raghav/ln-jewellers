@@ -5,11 +5,14 @@ import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Menu, Search, Heart, ShoppingBag, X, Gem } from "lucide-react";
+import { Menu, Search, Heart, ShoppingBag, X, Gem, UserRound, LogOut, Package, Sparkles } from "lucide-react";
 import { formatINR, netPrice } from "@/lib/format";
 import type { Product } from "@/lib/types";
+import { toast } from "sonner";
 import AnnouncementBar from "./AnnouncementBar";
+import AuthDialog from "./AuthDialog";
 
 const NAV_LINKS = [
   { label: "Home", view: "home" as const },
@@ -25,6 +28,9 @@ export default function Navbar() {
   const wishlist = useApp((s) => s.wishlist);
   const searchOpen = useApp((s) => s.searchOpen);
   const setSearchOpen = useApp((s) => s.setSearchOpen);
+  const user = useApp((s) => s.user);
+  const setUser = useApp((s) => s.setUser);
+  const openAuth = useApp((s) => s.openAuth);
   const isAdminArea = view === "admin" || view === "admin-login";
 
   const [scrolled, setScrolled] = useState(false);
@@ -44,9 +50,24 @@ export default function Navbar() {
     ? "bg-transparent border-b border-transparent"
     : "bg-background/90 backdrop-blur-md border-b border-border shadow-[0_1px_0_rgba(212,175,55,0.15)]";
 
-  const go = (v: "home" | "shop" | "about" | "contact" | "wishlist" | "cart" | "track" | "admin") => {
+  const go = (v: "home" | "shop" | "about" | "contact" | "wishlist" | "cart" | "track" | "account" | "admin") => {
     setMobileOpen(false);
     navigate(v);
+  };
+
+  const signOut = () => {
+    setMobileOpen(false);
+    fetch("/api/auth/logout", { method: "POST" })
+      .then(() => {
+        setUser(null);
+        toast.success("Signed out. Until next time.");
+      })
+      .catch(() => toast.error("Could not sign out — please try again."));
+  };
+
+  const signInFromMenu = () => {
+    setMobileOpen(false);
+    openAuth("login");
   };
 
   if (isAdminArea) return null;
@@ -58,13 +79,13 @@ export default function Navbar() {
         <AnnouncementBar />
         <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
           {/* brand */}
-          <button onClick={() => go("home")} className={`flex items-center gap-2.5 ${tone} group`} aria-label="Aurelia Jewels home">
+          <button onClick={() => go("home")} className={`flex items-center gap-2.5 ${tone} group`} aria-label="LN Jewellers home">
             <span className="grid h-9 w-9 place-items-center border border-[#D4AF37]/60 rotate-45 transition-transform group-hover:rotate-[135deg] duration-500">
               <Gem className="h-4 w-4 -rotate-45 text-[#D4AF37]" strokeWidth={1.5} />
             </span>
             <span className="flex flex-col items-start leading-none">
-              <span className="font-serif text-xl tracking-wide">Aurelia</span>
-              <span className="text-[9px] uppercase tracking-[0.4em] opacity-70">Jewels</span>
+              <span className="font-serif text-xl tracking-wide">LN</span>
+              <span className="text-[9px] uppercase tracking-[0.4em] opacity-70">Jewellers</span>
             </span>
           </button>
 
@@ -104,6 +125,49 @@ export default function Navbar() {
                 </span>
               )}
             </button>
+
+            {/* account: sign-in prompt or member menu */}
+            {!user ? (
+              <button
+                onClick={() => openAuth("login")}
+                className={`hidden h-10 items-center gap-2 rounded-full px-3 text-[11px] uppercase tracking-[0.2em] transition-colors hover:bg-[#D4AF37]/10 hover:text-[#D4AF37] sm:flex`}
+                aria-label="Sign in to your account"
+              >
+                <UserRound className="h-[18px] w-[18px]" strokeWidth={1.5} />
+                <span className="hidden lg:inline">Sign In</span>
+              </button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex h-10 items-center gap-2 rounded-full px-1.5 transition-colors hover:bg-[#D4AF37]/10 sm:px-2"
+                    aria-label={`Account menu for ${user.name}`}
+                  >
+                    <span className="grid h-8 w-8 place-items-center rounded-full border border-[#D4AF37]/60 bg-[#D4AF37]/10 font-serif text-sm text-[#8A6D1F]">
+                      {user.name.trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span className="hidden max-w-24 truncate text-xs tracking-wide lg:inline">{user.name.split(" ")[0]}</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60 border-[#D4AF37]/30 bg-[#FAF7F0]">
+                  <DropdownMenuLabel className="font-serif text-[15px] text-foreground">
+                    {user.name}
+                    <span className="block truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-[#D4AF37]/25" />
+                  <DropdownMenuItem onClick={() => go("account")} className="gap-2.5 py-2.5 focus:bg-[#D4AF37]/15 focus:text-[#8A6D1F]">
+                    <Package className="h-4 w-4" strokeWidth={1.5} /> My Orders
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => go("wishlist")} className="gap-2.5 py-2.5 focus:bg-[#D4AF37]/15 focus:text-[#8A6D1F]">
+                    <Sparkles className="h-4 w-4" strokeWidth={1.5} /> Wishlist
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-[#D4AF37]/25" />
+                  <DropdownMenuItem onClick={signOut} className="gap-2.5 py-2.5 focus:bg-[#D4AF37]/15 focus:text-[#8A6D1F]">
+                    <LogOut className="h-4 w-4" strokeWidth={1.5} /> Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <button className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-[#D4AF37]/10 hover:text-[#D4AF37] md:hidden" aria-label="Open menu">
@@ -112,7 +176,7 @@ export default function Navbar() {
               </SheetTrigger>
               <SheetContent side="right" className="w-80 border-[#D4AF37]/25 bg-[#0A0A0A] text-[#FAF7F0]">
                 <SheetHeader>
-                  <SheetTitle className="font-serif text-[#FAF7F0]">Aurelia Jewels</SheetTitle>
+                  <SheetTitle className="font-serif text-[#FAF7F0]">LN Jewellers</SheetTitle>
                 </SheetHeader>
                 <div className="mt-2 flex flex-col gap-1 px-4">
                   {NAV_LINKS.map((l) => (
@@ -129,6 +193,20 @@ export default function Navbar() {
                   <button onClick={() => go("track")} className="border-b border-[#D4AF37]/10 py-3.5 text-left font-serif text-lg transition-colors hover:text-[#D4AF37]">
                     Track Order
                   </button>
+                  {!user ? (
+                    <button onClick={signInFromMenu} className="border-b border-[#D4AF37]/10 py-3.5 text-left font-serif text-lg transition-colors hover:text-[#D4AF37]">
+                      Sign In / Register
+                    </button>
+                  ) : (
+                    <>
+                      <button onClick={() => go("account")} className="border-b border-[#D4AF37]/10 py-3.5 text-left font-serif text-lg transition-colors hover:text-[#D4AF37]">
+                        My Orders
+                      </button>
+                      <button onClick={signOut} className="py-3.5 text-left text-xs uppercase tracking-[0.3em] text-[#D4AF37]/70 transition-colors hover:text-[#D4AF37]">
+                        Sign Out ({user.name.split(" ")[0]}) →
+                      </button>
+                    </>
+                  )}
                   <button onClick={() => go("admin")} className="py-3.5 text-left text-xs uppercase tracking-[0.3em] text-[#D4AF37]/70 transition-colors hover:text-[#D4AF37]">
                     Admin Atelier →
                   </button>
@@ -140,6 +218,7 @@ export default function Navbar() {
       </header>
 
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <AuthDialog />
     </>
   );
 }
@@ -193,7 +272,7 @@ function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder="Try “solitaire”, “jhumka”, or a SKU like AUR-RNG-001…"
+              placeholder="Try “solitaire”, “jhumka”, or a SKU like LN-RNG-001…"
               className="h-12 border-[#D4AF37]/40 bg-white pl-10 text-base focus-visible:ring-[#D4AF37]"
               aria-label="Search products"
             />

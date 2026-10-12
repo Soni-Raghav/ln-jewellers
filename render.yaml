@@ -1,0 +1,19 @@
+# Render.com free-tier blueprint (alternative to Vercel — see README "Deploy free").
+# Deploy: Render dashboard → New → Blueprint → point at this repo.
+# NOTE: Render's free plan has an EPHEMERAL disk — pair it with a free Neon
+# Postgres (DATABASE_URL below) so catalog/orders survive redeploys.
+services:
+  - type: web
+    name: ln-jewellers
+    runtime: node
+    plan: free
+    buildCommand: npm install && node scripts/use-postgres-schema.mjs && npx prisma generate --schema prisma/schema.postgres.prisma && npm run build
+    startCommand: NODE_ENV=production node .next/standalone/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false            # paste your Neon postgresql://…?sslmode=require URL in the dashboard
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false            # e.g. https://ln-jewellers.onrender.com

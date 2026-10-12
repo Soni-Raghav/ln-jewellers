@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * JewelHero — an immersive, fully procedural 3D hero scene for Aurelia Jewels.
+ * JewelHero — an immersive, fully procedural 3D hero scene for LN Jewellers.
  *
  * - A luxury gold ring assembled purely from primitives (torus band, faceted
  *   octahedron gem, prong spheres). No GLB files, no <Environment> presets,
@@ -292,10 +292,10 @@ export function HeroFallback({ className }: { className?: string }) {
             textShadow: "0 2px 24px rgba(138,109,31,0.25)",
           }}
         >
-          A
+          LN
         </span>
         <span className="mt-2 text-[10px] uppercase tracking-[0.5em] text-[#8A6D1F]/80 md:text-xs">
-          Aurelia Jewels
+          LN Jewellers
         </span>
       </div>
       {/* soft vignette */}

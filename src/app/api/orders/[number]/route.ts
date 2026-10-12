@@ -1,19 +1,31 @@
 import { db } from "@/lib/db";
 import { handle, ok, notFound, badRequest, sanitize } from "@/lib/api-utils";
+import { getSession } from "@/lib/auth";
 
-/** Order tracking: requires order number + matching email. */
+/**
+ * Order tracking. Two ways in:
+ *  - order number + matching billing email (guest flow), or
+ *  - a signed-in session that owns the order (account flow — no email needed).
+ */
 export async function GET(req: Request, ctx: { params: Promise<{ number: string }> }) {
   return handle(async () => {
     const { number } = await ctx.params;
-    const { searchParams } = new URL(req.url);
-    const email = sanitize(searchParams.get("email") || "").toLowerCase();
-    if (!number || !email) return badRequest("Order number and email are required");
+    if (!number) return badRequest("Order number and email are required");
 
+    const session = await getSession();
     const order = await db.order.findUnique({
       where: { orderNumber: number.toUpperCase() },
       include: { items: true },
     });
-    if (!order || order.email.toLowerCase() !== email) return notFound("We couldn't find an order with those details");
+    if (!order) return notFound("We couldn't find an order with those details");
+
+    const isOwner = !!session && order.userId === session.sub;
+    if (!isOwner) {
+      const { searchParams } = new URL(req.url);
+      const email = sanitize(searchParams.get("email") || "").toLowerCase();
+      if (!email) return badRequest("Order number and email are required");
+      if (order.email.toLowerCase() !== email) return notFound("We couldn't find an order with those details");
+    }
 
     return ok({
       order: {

@@ -15,33 +15,33 @@ const jost = Jost({
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://aureliajewels.example.com";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lnjewellers.example.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Aurelia Jewels — Handcrafted 22K Gold Jewelry, Made in Jaipur",
-    template: "%s · Aurelia Jewels",
+    default: "LN Jewellers — Handcrafted 22K Gold Jewelry, Made in Jaipur",
+    template: "%s · LN Jewellers",
   },
   description:
-    "Aurelia Jewels crafts heirloom-quality 22K & 18K gold jewellery by hand in Jaipur — solitaires, temple chokers, jhumkas, bridal sets and one-of-one artisan pieces. BIS hallmarked, insured shipping, WhatsApp concierge.",
+    "LN Jewellers crafts heirloom-quality 22K & 18K gold jewellery by hand in Jaipur — solitaires, temple chokers, jhumkas, bridal sets and one-of-one artisan pieces. BIS hallmarked, insured shipping, WhatsApp concierge.",
   keywords: [
     "gold jewelry", "handmade jewelry", "22K gold", "handcrafted", "bridal gold set",
     "temple jewellery", "Jaipur jewellers", "BIS hallmarked", "luxury jewellery",
   ],
-  authors: [{ name: "Aurelia Jewels" }],
+  authors: [{ name: "LN Jewellers" }],
   openGraph: {
-    title: "Aurelia Jewels — Handcrafted Luxury Gold Jewelry",
+    title: "LN Jewellers — Handcrafted Luxury Gold Jewelry",
     description:
       "Heirloom-quality 22K & 18K gold jewellery, handmade in Jaipur. BIS hallmarked. Insured shipping across India. Order via WhatsApp concierge.",
     url: siteUrl,
-    siteName: "Aurelia Jewels",
+    siteName: "LN Jewellers",
     type: "website",
-    images: [{ url: "/images/products/ring-solitaire.png", width: 1024, height: 1024, alt: "Aurelia Jewels signature solitaire ring" }],
+    images: [{ url: "/images/products/ring-solitaire.png", width: 1024, height: 1024, alt: "LN Jewellers signature solitaire ring" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Aurelia Jewels — Handcrafted Luxury Gold Jewelry",
+    title: "LN Jewellers — Handcrafted Luxury Gold Jewelry",
     description: "Heirloom-quality 22K & 18K gold jewellery, handmade in Jaipur.",
     images: ["/images/products/ring-solitaire.png"],
   },
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Aurelia Jewels",
+    title: "LN Jewellers",
     statusBarStyle: "black-translucent",
   },
 };

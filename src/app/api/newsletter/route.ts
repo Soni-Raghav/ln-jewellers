@@ -17,6 +17,6 @@ export async function POST(req: Request) {
       update: { active: true },
     });
 
-    return ok({ success: true, message: "Welcome to the Aurelia circle — first access to new collections awaits." });
+    return ok({ success: true, message: "Welcome to the LN Jewellers circle — first access to new collections awaits." });
   });
 }

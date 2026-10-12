@@ -402,7 +402,7 @@ function CouponForm({ onCreated }: { onCreated: (c: Coupon) => void }) {
     <div className="grid gap-4">
       <div className="grid gap-1.5">
         <Label className="text-xs uppercase tracking-widest text-muted-foreground">Code *</Label>
-        <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Za-z0-9_-]/g, ""))} placeholder="AURELIA10" className="border-[#D4AF37]/40 bg-white font-mono uppercase" />
+        <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Za-z0-9_-]/g, ""))} placeholder="LN10" className="border-[#D4AF37]/40 bg-white font-mono uppercase" />
         {fields.code && <p className="text-xs text-destructive">{fields.code}</p>}
       </div>
       <div className="grid gap-1.5">

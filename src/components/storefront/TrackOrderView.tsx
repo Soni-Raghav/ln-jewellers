@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home, Printer, Gift, PenLine, XCircle, X } from "lucide-react";
+import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home, ReceiptText, Gift, PenLine, XCircle, X } from "lucide-react";
 import { formatINR, formatDate, engravingFontLabel } from "@/lib/format";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -53,8 +53,9 @@ const STAGES = [
 
 export default function TrackOrderView() {
   const navigate = useApp((s) => s.navigate);
+  const user = useApp((s) => s.user);
   const [orderNumber, setOrderNumber] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(user?.email ?? "");
   const [order, setOrder] = useState<TrackedOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -131,9 +132,9 @@ export default function TrackOrderView() {
         <div className="print-invoice hidden">
           <div className="flex items-start justify-between border-b-2 border-[#D4AF37] pb-4">
             <div>
-              <p className="font-serif text-2xl font-semibold">Aurelia Jewels</p>
+              <p className="font-serif text-2xl font-semibold">LN Jewellers</p>
               <p className="text-xs text-[#5A544A]">Handcrafted 22K &amp; 18K gold jewelry · Jaipur, India</p>
-              <p className="text-xs text-[#5A544A]">hello@aureliajewels.com · +91 98765 43210</p>
+              <p className="text-xs text-[#5A544A]">hello@lnjewellers.com · +91 98765 43210</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] uppercase tracking-[0.3em] text-[#A8862A]">Tax invoice</p>
@@ -165,7 +166,7 @@ export default function TrackOrderView() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Order number</Label>
-            <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="AUR-20250101-XXXXX" className="border-[#D4AF37]/40 bg-[#FAF7F0] uppercase" />
+            <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="LN-20250101-XXXXX" className="border-[#D4AF37]/40 bg-[#FAF7F0] uppercase" />
           </div>
           <div>
             <Label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Email used at checkout</Label>
@@ -298,10 +299,10 @@ export default function TrackOrderView() {
           <div className="mt-5 flex flex-wrap gap-3 print:hidden">
             <Button
               variant="outline"
-              onClick={() => window.print()}
+              onClick={() => navigate("invoice", { orderNumber: order.orderNumber, orderEmail: order.email })}
               className="border-[#D4AF37]/50 text-[#7a611f] hover:bg-[#D4AF37]/10 hover:text-[#7a611f]"
             >
-              <Printer className="mr-2 h-4 w-4" /> Print invoice
+              <ReceiptText className="mr-2 h-4 w-4" /> View / print invoice
             </Button>
             {cancelEligible && (
               <Button
@@ -329,7 +330,7 @@ export default function TrackOrderView() {
       {!order && !loading && (
         <div className="mt-8 rounded-xl border border-dashed border-[#D4AF37]/30 bg-white/50 p-6 text-center text-sm text-muted-foreground">
           <PackageSearch className="mx-auto mb-2 h-6 w-6 text-[#D4AF37]" />
-          Your order number is in the confirmation shown after checkout (it starts with <span className="font-mono">AUR-</span>).
+          Your order number is in the confirmation shown after checkout (it starts with <span className="font-mono">LN-</span>).
         </div>
       )}
 

@@ -1,19 +1,23 @@
-# Aurelia Jewels — Project Worklog
+# LN Jewellers — Project Worklog
 
 Shared handover document. Every agent MUST read this before working and append a section after finishing.
+
+> NOTE: Rounds 1-11 were built under the previous brand "Aurelia Jewels". Round 12 rebranded
+> everything to **LN Jewellers** (UI, metadata, DB settings, admin account, SKUs, coupon LN10,
+> order prefix LN-). Historical entries below keep the old name for accuracy.
 
 ---
 
 ## Project Brief (read me first)
 
-Premium 3D jewelry e-commerce website "Aurelia Jewels" — luxurious golden theme (#D4AF37 gold, #E6C87A champagne, #0A0A0A black, #171717 charcoal, #FAF7F0 ivory), Three.js 3D hero, full shop/catalog/cart/checkout, secure admin dashboard with inventory management, WhatsApp integration, all database-backed.
+Premium 3D jewelry e-commerce website "LN Jewellers" (rebranded from "Aurelia Jewels" in round 12) — luxurious golden theme (#D4AF37 gold, #E6C87A champagne, #0A0A0A black, #171717 charcoal, #FAF7F0 ivory), Three.js 3D hero, full shop/catalog/cart/checkout, secure admin dashboard with inventory management, WhatsApp integration, all database-backed.
 
 **Stack (sandbox-adapted, do not fight it):**
 - Next.js 16 App Router + TypeScript (single visible route `/` — all views are client-side via hash router in `src/lib/store.ts`)
 - Tailwind CSS 4 + shadcn/ui (New York) — components in `src/components/ui` (do NOT rebuild them)
 - Prisma + SQLite (`db/custom.db`), schema in `prisma/schema.prisma`, seeded via `scripts/seed.ts` (14 products, categories, collections, orders, reviews, settings)
 - API routes under `src/app/api/**` (public: products, categories, collections, settings, orders, contact, newsletter, reviews, auth, payments; admin: dashboard, products, inventory, orders, inquiries, subscribers, reviews, settings, audit-logs — all guarded by `requireAdmin()`)
-- Auth: JWT (HMAC) in httpOnly cookie `aurelia_session`. Admin: `admin@aureliajewels.com` / `Aurelia@Admin1`
+- Auth: JWT (HMAC) in httpOnly cookie `ln_session`. Admin: `admin@lnjewellers.com` / `LN@Admin1` (seed-created only, no public admin signup). Customers self-register via `POST /api/auth/register` and sign in through the navbar AuthDialog; orders placed signed-in link via `Order.userId`; account area at `#/account`.
 - framer-motion, lucide-react, sonner (toast), zustand (state), three/@react-three/fiber/@react-three/drei installed
 
 **Key contracts (ALREADY EXIST — import, never modify):**
@@ -405,3 +409,108 @@ Stage Summary:
 - Decisions: (1) engravingFont null = classic serif so every pre-existing engraved order renders unchanged; (2) cart identity includes font — two hands of the same inscription are genuinely different workshop jobs; (3) per-type capacity replaces the shared one — visits and video calls have independent books (schema column swapped, no data migration needed); (4) availability returns the full type matrix per slot so the form can re-render instantly when the guest switches meeting type without a second fetch; (5) wishlist share prefers navigator.share and degrades to clipboard, never blocking on share-sheet dismissal
 - Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged since round 3)
 - Next suggestions: (1) emails (order/appointment/restock confirmations) once SMTP lands; (2) engraving fee could vary by style (script premium) — needs a settings map; (3) per-coupon funnel analytics needs view/order events; (4) 360° auto-spin capture -> webm/gif for social; (5) order-confirmation PDF invoice download (print stylesheet exists already).
+
+---
+Task ID: cron-r11
+Agent: webDevReview agent (round 11)
+Task: Status assessment + agent-browser QA + new features (per-style engraving fees full stack, review helpfulness votes full stack, dedicated tax-invoice view) + styling polish
+
+Work Log:
+- STATUS ASSESSMENT: dev healthy (GET / 200, /api/health ok); git clean @fd1bee4; lint 0/0; tsc clean in src/; reviewed worklog rounds 1-10. agent-browser QA sweep across home / shop / product / cart / admin — zero page errors; admin session persisted. VERDICT: stable → proceeded to feature work per round mandate.
+- BUG FOUND & FIXED (pre-existing): serializeProduct() nulled out full review rows, so product detail pages showed rating "5 (2)" in the summary yet the Reviews section always read "No reviews yet" (client never received rows). Fix: serialize.ts keeps full rows when present (runtime "comment" probe — list endpoints' rating-only rows still never leak; verified live via /api/products vs /api/products/[slug]).
+- NEW FEATURE — Per-style engraving fees, script premium (FULL STACK):
+  * prisma: StoreSettings.engravingFeeScript @default(2500), engravingFeeSans @default(1800); engravingFee (1500) = classic serif base; db:push + generate + pkill-then-start restart
+  * /api/orders: authoritative per-hand fee — fee = Σ per line (qty × feeFor(font)); unknown font still normalized to SERIF before pricing (verified: mixed order 2×SERIF+1×SANS+1×GOTHIC → ₹6,300; SCRIPT order → ₹2,500)
+  * format.ts: engravingFeeFor(settings, font) + engravingTotals(items, settings) shared helpers (per-hand pricing honoured everywhere client-side)
+  * ProductView: header shows SELECTED hand's fee ("+₹2,500 / piece · Elegant Script"), each style chip carries its fee (+₹1,500 / +₹2,500 / +₹1,800); copy explains hands price their own labour
+  * CartView chip: "ELEGANT SCRIPT · +₹2,500/pc"; note copy updated; CheckoutView estimate via engravingTotals ("1 piece · ₹2,500"), per-line chips show style + line fee, header "from +₹1,500 / piece" when no engraving yet
+  * admin SettingsManager: two new fee inputs (script/sans) + PATCH accepts/clamps; live-tested PATCH 2600 → public settings reflects → restored 2500
+  * WhatsApp message + CSV unchanged (totals flow through) — waTotalsLines still truthful
+- NEW FEATURE — Review helpfulness votes (FULL STACK):
+  * prisma: Review.helpfulCount Int @default(0)
+  * NEW POST /api/reviews/[id]/helpful — approved-only, rate-limited 30/10min/IP, returns {helpfulCount}; nonexistent/unapproved → 404 (verified)
+  * ProductView: ReviewCard component (extracted) — gold "Helpful" pill → optimistic vote → server count reconciliation → chip "N clients found this helpful"; dedup via localStorage "aurelia_helpful" read in lazy useState initializer (no effect, lint-clean); rollback + toast on failure; E2E: 2 API votes + 1 UI vote = "3 clients found this helpful", persisted in DB, second button hidden after vote
+  * admin ReviewsManager: gold "N helpful" ThumbsUp badge on comment cell when count > 0
+- NEW FEATURE — Dedicated tax-invoice view #/invoice/AUR-… (FRONTEND on the authed order API):
+  * NEW src/components/storefront/InvoiceView.tsx: luxurious invoice sheet — gem letterhead + gold double rule, TAX INVOICE eyebrow, payment-status pill, billed-to/payment grid, items table (qty/rate/amount + engraved chip in the chosen hand), totals with gold rule, gift-card note card, BIS hallmark assurance + signature block, computer-generated footer
+  * Privacy: order API requires number + matching billing email, so a direct/shared URL shows a verification gate (order number readonly from hash, email input); arriving from track/checkout/admin (email in state) auto-loads — gate verified on reload, auto-load verified from all three entries
+  * Router: ViewName "invoice" + ViewParams.orderNumber/orderEmail; parseHash `#/invoice/:num`; hashFor; page.tsx dynamic import + title "Invoice"
+  * Entries: TrackOrderView replaced inline "Print invoice" with "View / print invoice" (legacy print-invoice letterhead kept as Ctrl+P fallback); CheckoutView confirmation gains "View invoice"; admin OrdersManager detail gains "Open tax invoice" (closes dialog, navigates with billing email)
+  * Print stylesheet extended: .invoice-sheet revealed + lifted top-left, chrome stripped; agent-browser `pdf` export verified — clean single-page A4 tax invoice (screenshots/PDF in download/)
+  * Mobile 390px: items table wrapped in overflow-x-auto, Rate column folds away on <sm (print:table-cell guarantees full grid on paper); verified docHScroll:false + Amount visible after fix
+- STYLING POLISH: per-hand fee labels on all three style chips w/ gold emphasis when active; cart/checkout/track/invoice/admin engraving chips now all carry style + fee where relevant; invoice sheet typography (serif brand, uppercase tracking eyebrows, gold rules); review helpful pill hover states; gate copy with lock icon
+- CLEANUP: 3 test orders deleted (stock restored per line incl. variant stock, salesCount decremented incl. the variant line — second pass fixed that), their InventoryMovements removed, helpfulCount votes reset to 0; subscribers/reviews intact
+- GETCHAS: (1) agent-browser `tab` needs stable ids (t2), positional ints rejected; (2) agent-browser eval must wrap in IIFE or `const` collides across calls; (3) React controlled inputs need _valueTracker.setValue('') BEFORE native setter, then input event (recurring gotcha); (4) Fast Refresh can emit transient "Module not found" console errors while a new file is mid-edit — re-load fresh before judging; (5) pkill-then-start restart worked first time this round
+- VERIFICATION: bun run lint → 0 errors 0 warnings; bunx tsc --noEmit → clean in src/; zero page errors across home/shop/product/cart/wishlist/contact/track/invoice/about/faq; committed on main (NOT pushed — still no GitHub credentials)
+
+Stage Summary:
+- Files created: src/app/api/reviews/[id]/helpful/route.ts, src/components/storefront/InvoiceView.tsx
+- Files modified: prisma/schema.prisma, src/app/globals.css, src/app/page.tsx, src/app/api/orders/route.ts, src/app/api/admin/settings/route.ts, src/lib/{types,format,store,serialize}.ts, src/components/storefront/{ProductView,CartView,CheckoutView,TrackOrderView}.tsx, src/components/admin/{OrdersManager,ReviewsManager,SettingsManager}.tsx
+- Decisions: (1) per-hand fees live beside the base fee (engravingFee stays the serif/base price — legacy orders, dashboards and CSV semantics untouched); (2) server re-prices by font with SERIF fallback — client fee labels are presentation only; (3) votes are a social-proof counter: localStorage dedup + IP rate limit, no account binding (not worth a votes table); (4) invoice reuses the existing authed order API instead of a new endpoint — same email verification as tracking, zero new attack surface; (5) serializeProduct keeps full review rows only when they exist (runtime probe) so list endpoints never leak payloads
+- Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged since round 3)
+- Next suggestions: (1) emails (order/appointment/invoice PDF attachments) once SMTP lands; (2) invoice number series (legal GST invoice numbers vs order numbers) — needs settings field + audit; (3) review sorting/filtering by helpfulCount ("most helpful first"); (4) gift finder quiz (occasion/budget → curated results) for the home page; (5) admin: per-style engraving revenue breakdown on the dashboard.
+
+---
+Task ID: cron-r12
+Agent: webDevReview agent (round 12)
+Task: USER REQUEST — rebrand to "LN Jewellers" + add customer login; full QA sweep; bug fixes
+
+Work Log:
+- USER REQUEST EXECUTED: "Change Name to LN Jewellers and provide login also".
+- REBRAND (complete sweep, zero `aurelia` matches left in src/scripts/prisma/README/manifest):
+  * Ordered sed pipeline across 32 files: Aurelia Jewels→LN Jewellers, Aurelia Atelier→LN Atelier, aureliajewels→lnjewellers, AURELIA10→LN10, AureliaApp→LNJewellersApp, Aurelia@Admin1→LN@Admin1, aurelia_session/ln_session, aurelia_helpful/ln_helpful, aurelia-→ln- (store key, recent key, download filenames, dev secret), AUR-→LN- (order prefix, seed SKUs, search placeholder), bare Aurelia→LN Jewellers (prose).
+  * Navbar/Footer brand lockups de-duplicated (serif "LN" + tracked "JEWELLERS"); hero fallback monogram "A"→"LN"; metadata/OG/twitter/manifest/sitemap → lnjewellers.example.com; admin chrome "LN Atelier · Admin"; Q&A attribution "LN Atelier".
+  * DB sweep script scripts/rebrand-db.ts (settings row, prose across products/collections/categories/reviews/questions, SKU prefix, slugs, coupon codes, admin account).
+  * New store identity: brandName "LN Jewellers", hello@lnjewellers.com, LN Atelier address, @lnjewellers socials.
+- DATA LOSS + RECOVERY (critical lesson): `bun run db:push` (package script has --accept-data-loss) silently RESET custom.db when pushing the Order.userId relation — ALL rows lost. Recovered 100% by re-seeding: scripts/seed.ts (14 products, categories, collections, settings, reviews, 2 demo orders, inquiries, subscribers) + scripts/seed-coupons.ts (LN10/FIRSTGLINT/HEIRLOOM15). All seed content is now LN-branded (seed itself was swept). ALWAYS pkill-then-restart + expect resets when touching schema; never assume push is additive while --accept-data-loss is set.
+- CUSTOMER LOGIN (full stack):
+  * prisma: Order.userId String? + user relation (SetNull) + @@index([userId]); db:push (see recovery above) + generate.
+  * NEW POST /api/auth/register — rate-limited 5/30min, name/email/password(≥8 + letter&number)/confirm validation, 409 on duplicate email, bcrypt, auto-session, AUTH_REGISTER audit.
+  * NEW GET /api/auth/orders — session-only, returns the signed-in customer's orders (items incl.) for #/account.
+  * /api/orders POST: session-aware — new orders link userId server-side (never trusted from client).
+  * /api/orders/[number]: two access paths — number+email (guest) OR owning session (no email). Guests without email get 400, wrong email 404 (E2E verified).
+  * AuthDialog (navbar): login/register tabs, show/hide password, per-field server errors, 401/409 surfaced, toast welcome; mounts fresh per open (no reset effects). Radix DialogTitle/Description used (a11y clean).
+  * Navbar: "Sign In" pill (guest) ⇄ gold avatar DropdownMenu (My Orders / Wishlist / Sign Out); mobile sheet gets Sign In / Register ⇄ My Orders + Sign Out.
+  * store.ts: user/setUser, authOpen/authMode/openAuth; boot /api/auth/me restore in page.tsx (promise-callback style, lint-clean).
+  * AccountView #/account: signed-out gate ("Your private salon") or dashboard — profile card, expandable order history with journey timeline (PLACED→DELIVERED), engraving chips w/ hand label, totals, View Invoice + WhatsApp Concierge actions, empty/error/skeleton states. Router: ViewName "account", parseHash, dynamic import, doc title.
+  * CheckoutView prefills name/email for members; InvoiceView auto-loads for the owning session without email; TrackOrderView prefills email; Footer gains "My Account" quick link.
+- BUGS FOUND & FIXED:
+  1. Sticky checkout aside taller than short viewports → "Place order" button unreachable (clip at 577px height; a real laptop-height bug too). Fixed: lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto on the aside. E2E: button y=616 (clipped) → 454 (reachable) → order placed.
+  2. Footer copyright "© 2026LN Jewellers" JSX whitespace collapse → single template string.
+  3. AuthDialog Radix a11y errors (missing DialogTitle/Description) → proper components; zero console errors now.
+  4. Order number prefix still AUR- (orders route was outside the rebrand file list) → LN-20261013-… now; admin ProductForm SKU placeholder → LN-.
+- GETCHAS: (1) tool-output pipeline strips `[m` sequences — `const [method,` DISPLAYED as `const ethod,` and sed/python replacements LOOK like no-ops; verify with grep -c, never by eyeballing output (burned 3 debug cycles on a non-bug). (2) agent-browser physical clicks on Radix dropdowns need real pointer events (find role click works, eval .click() doesn't). (3) Radix dialogs taller than the viewport: clicks land on the overlay → silent close; cap dialog height + overflow-y-auto. (4) React controlled inputs in eval: use _valueTracker.setValue + native setter + input event. (5) bunx tsc noise comes only from examples/+skills/ — src/ is clean.
+- VERIFICATION (agent-browser, desktop 1440×900 + mobile 390×844): register→auto-login→#account empty state→shop→quick-add→checkout prefilled (name+email from account)→order LN-linked in DB (userId set)→account shows order w/ expand→invoice loads owner-only w/o email→sign out→sign in→order persists; admin login admin@lnjewellers.com/LN@Admin1 → dashboard 200 ("Welcome back, LN Admin."); old Aurelia creds 401; /api/auth/orders unauthenticated 401; mobile menu auth entries + auth dialog scrollable + no horizontal scroll; lint 0/0; tsc clean in src/; console clean. Screenshots: download/r12-mobile-account.png, download/r12-desktop-home.png.
+- COMMITTED on main (NOT pushed — still no GitHub credentials in sandbox).
+
+Stage Summary:
+- Files created: src/app/api/auth/register/route.ts, src/app/api/auth/orders/route.ts, src/components/layout/AuthDialog.tsx, src/components/storefront/AccountView.tsx, scripts/rebrand-db.ts
+- Files modified: prisma/schema.prisma, src/lib/{types,store}.ts, src/app/page.tsx, src/app/layout.tsx, src/app/sitemap.ts, src/app/globals.css, src/app/api/orders/route.ts, src/app/api/orders/[number]/route.ts, src/app/api/auth/{login,logout,me}/route.ts (cookie name), src/app/api/{health,newsletter}/route.ts, src/components/layout/{Navbar,Footer}.tsx, src/components/storefront/{CheckoutView,InvoiceView,TrackOrderView,AboutView,ProductView,WishlistView,AdminLoginView,RecentlyViewed}.tsx, src/components/home/{HomeView,ProductCard}.tsx, src/components/three/JewelHero.tsx, src/components/admin/{AdminView,SettingsManager,CouponsManager,AppointmentsManager,ProductForm}.tsx, src/lib/{auth,format}.ts, scripts/{seed,seed-coupons}.ts, README.md, public/manifest.webmanifest, worklog.md
+- Decisions: (1) order numbers keep historical rows (old AUR- orders unchanged); new orders LN-; (2) register always creates CUSTOMER (admin stays seed-only — RBAC preserved); (3) session-owner order/invoice access skips email verification server-side (ownership enforced by Order.userId); (4) localStorage/persist keys renamed with the rebrand (carts reset once — acceptable at rebrand moment); (5) auth dialog caps at 92dvh + scrolls (mobile-safe).
+- Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged).
+- Next suggestions: (1) password reset / change (needs SMTP or admin-assisted); (2) "Continue shopping" deep-links from account rows; (3) wishlist sync to the account (currently device-local); (4) order-level notes thread between client & concierge; (5) emails (order/appointment confirmations) once SMTP lands.
+
+---
+Task ID: 13
+Agent: main agent (Z.ai Code)
+Task: USER REQUEST — "push the code on github and host it for free". Repo is round-12 complete (LN Jewellers, git clean on main). Prepare everything pushable/deployable; GitHub push itself is blocked on user credentials.
+
+Work Log:
+- Inspected repo: 314 tracked files; found .env COMMITTED (security) + 103 QA screenshots in download/ + sandbox plumbing (.zscripts, tests, examples, mini-services, Caddyfile). Verified history: .env never contained real secrets (only a local sqlite path), db/ never committed → history is safe to push as-is.
+- GIT HYGIENE: git rm -r --cached .env download .zscripts tests examples mini-services Caddyfile; .gitignore gained /download/, sandbox dirs, prisma/schema.postgres.prisma and an !.env.example exception. Repo now 198 clean files.
+- POSTGRES PATH: wrote scripts/use-postgres-schema.mjs (derives prisma/schema.postgres.prisma from the canonical schema by provider swap; verified diff = provider line only) so the same models run on Neon/any Postgres. Committed the generated file is NOT tracked (gitignored, regenerated at build).
+- HOSTING CONFIGS: vercel.json (framework nextjs, buildCommand = node scripts/use-postgres-schema.mjs && prisma generate --schema prisma/schema.postgres.prisma && next build; /images cache headers); render.yaml (free-tier blueprint, standalone start via node .next/standalone/server.js, healthCheck /api/health, AUTH_SECRET generateValue, DATABASE_URL prompt).
+- package.json: renamed ln-jewellers@1.0.0; added postinstall "prisma generate" (Vercel-safe), db:postgres (schema swap + db push + generate against a hosted URL), db:seed / db:seed:force / db:seed:coupons via npx tsx (portable, no bun requirement).
+- .env.example committed: DATABASE_URL (sqlite dev + neon prod examples), AUTH_SECRET, NEXT_PUBLIC_SITE_URL, RAZORPAY_* optional.
+- README: replaced the thin deploy section with a full free-hosting guide — Step 0 GitHub push (repo already configured: just add remote + push), Step 1 Neon free Postgres, Step 2 one-time db:postgres + db:seed, Step 3 Vercel import + env vars table, Step 4 go-live checklist (change admin password, real WhatsApp number, test order, Razorpay optional, custom domain), Render alternative + troubleshooting table (P1001 sslmode, missing envs, unseeded DB, Render ephemeral disk).
+- VERIFICATION: git history checked for secrets (clean); lint 0/0; /api/health {"status":"healthy"}; GET / 200; agent-browser sweep — title "LN Jewellers — Handcrafted 22K Gold Jewelry, Made in Jaipur", hash-nav to #/shop renders 12 product cards, console clean (only benign THREE.Clock deprecation + HMR logs). Screenshot download/r13-home.png.
+- COMMITTED: a6bfda8 "Round 13: deploy-ready for GitHub + free hosting" on main (13 commits total).
+- PUSH STATUS: BLOCKED ON CREDENTIALS — sandbox has no GitHub token, no gh CLI, no remotes. A push cannot be performed without the user's auth. Handoff prepared: (A) user pastes a GitHub PAT (repo scope) → I add remote + push immediately; (B) user creates repo at github.com/new and runs: git remote add origin https://github.com/<user>/ln-jewellers.git && git push -u origin main (works from their machine; repo is push-ready).
+
+Stage Summary:
+- Files created: .env.example, scripts/use-postgres-schema.mjs, vercel.json, render.yaml
+- Files modified: .gitignore, package.json, README.md
+- Files untracked (local copies kept): .env, download/**, .zscripts/**, tests/**, examples/**, mini-services/**, Caddyfile
+- Decisions: (1) Postgres via Neon chosen for prod (serverless hosts have ephemeral disks; SQLite can't persist) — provider-swap script keeps ONE source-of-truth schema; (2) db push happens ONE TIME locally against Neon (documented), Vercel build only swaps schema + generates client — no DB writes during serverless builds; (3) history kept intact (tells rounds 1–13 story) since no real secrets ever committed; (4) AUTH_SECRET stays optional in dev (fallback) but is mandatory in prod docs.
+- Blockers: GitHub push + Vercel deploy need user auth (PAT or self-serve). Razorpay/SMTP/Cloudinary still optional-credential items (unchanged).
+- Next: the moment credentials land — git push, then Vercel import; after that, optional polish (emails via SMTP, Razorpay live keys, custom domain).

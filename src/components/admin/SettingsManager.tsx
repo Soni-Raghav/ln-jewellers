@@ -33,7 +33,7 @@ type FaqRow = { q: string; a: string };
 type TestimonialRow = { name: string; location: string; text: string; rating: string };
 
 const DEFAULT_SETTINGS: StoreSettingsDTO = {
-  brandName: "Aurelia Jewels",
+  brandName: "LN Jewellers",
   tagline: "Handcrafted Luxury Jewelry",
   whatsappNumber: "",
   email: "",
@@ -50,6 +50,8 @@ const DEFAULT_SETTINGS: StoreSettingsDTO = {
   giftWrapFee: 500,
   engravingEnabled: true,
   engravingFee: 1500,
+  engravingFeeScript: 2500,
+  engravingFeeSans: 1800,
   appointmentVisitCapacity: 2,
   appointmentVideoCapacity: 2,
   aboutStory: "",
@@ -109,6 +111,8 @@ export default function SettingsManager() {
         giftWrapFee: Math.max(0, Number(form.giftWrapFee) || 0),
         engravingEnabled: form.engravingEnabled,
         engravingFee: Math.max(0, Number(form.engravingFee) || 0),
+        engravingFeeScript: Math.max(0, Number(form.engravingFeeScript) || 0),
+        engravingFeeSans: Math.max(0, Number(form.engravingFeeSans) || 0),
         appointmentVisitCapacity: Math.min(10, Math.max(1, Math.round(Number(form.appointmentVisitCapacity) || 2))),
         appointmentVideoCapacity: Math.min(10, Math.max(1, Math.round(Number(form.appointmentVideoCapacity) || 2))),
         faq: faqRows.filter((r) => r.q.trim() || r.a.trim()),
@@ -338,7 +342,29 @@ export default function SettingsManager() {
                 onChange={(e) => set("engravingFee", Number(e.target.value))}
                 className="border-[#E0D9C8] bg-white"
               />
-              <p className="text-xs text-[#8A8375]">Charged for each engraved piece — guests inscribe pieces on the product page.</p>
+              <p className="text-xs text-[#8A8375]">Classic serif hand — charged for each engraved piece.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#5A544A]">Script engraving fee (₹ per piece)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={form.engravingFeeScript}
+                onChange={(e) => set("engravingFeeScript", Number(e.target.value))}
+                className="border-[#E0D9C8] bg-white"
+              />
+              <p className="text-xs text-[#8A8375]">Elegant script hand — flowing curves take the karigar longer, so it carries a premium.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#5A544A]">Sans engraving fee (₹ per piece)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={form.engravingFeeSans}
+                onChange={(e) => set("engravingFeeSans", Number(e.target.value))}
+                className="border-[#E0D9C8] bg-white"
+              />
+              <p className="text-xs text-[#8A8375]">Modern sans hand — deep, clean letter cuts.</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-[#5A544A]">Atelier visits per slot</Label>

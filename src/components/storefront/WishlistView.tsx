@@ -20,7 +20,7 @@ export default function WishlistView() {
   const shareOnWhatsApp = () => {
     if (items.length === 0 || !settings) return;
     const lines = [
-      `Hello Aurelia Jewels! ◆`,
+      `Hello LN Jewellers! ◆`,
       ``,
       `Here's my wishlist — could you share availability and current making times?`,
       ``,
@@ -37,7 +37,7 @@ export default function WishlistView() {
       .map((p, i) => `${i + 1}. ${p.name} — ${formatINR(netPrice(p.price, p.discountPercent))}`)
       .join("\n");
     const url = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}#/wishlist` : "";
-    return `My Aurelia Jewels wishlist ✨\n\n${list}\n\n${url}`;
+    return `My LN Jewellers wishlist ✨\n\n${list}\n\n${url}`;
   };
 
   /** Native share sheet (mobile) with graceful clipboard fallback on desktop. */
@@ -46,7 +46,7 @@ export default function WishlistView() {
     const text = wishlistText();
     if (navigator.share) {
       try {
-        await navigator.share({ title: "My Aurelia Jewels wishlist", text });
+        await navigator.share({ title: "My LN Jewellers wishlist", text });
         return;
       } catch (err) {
         if ((err as DOMException)?.name === "AbortError") return; // user closed the sheet

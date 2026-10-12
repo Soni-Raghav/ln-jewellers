@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://aureliajewels.example.com";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lnjewellers.example.com";
 
 /**
  * Single-route SPA with hash views — the canonical entry is "/".

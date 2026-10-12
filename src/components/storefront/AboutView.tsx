@@ -19,7 +19,7 @@ export default function AboutView() {
   }, []);
 
   const story = settings?.aboutStory ||
-    "Aurelia began in 2016 at a two-bench workshop in Johari Bazaar, Jaipur — with one master karigar, a sheet of 22K gold and a stubborn belief that real luxury is made slowly.";
+    "LN Jewellers began in 2016 at a two-bench workshop in Johari Bazaar, Jaipur — with one master karigar, a sheet of 22K gold and a stubborn belief that real luxury is made slowly.";
 
   const mission = settings?.missionVision ||
     "Mission: To make heirloom-quality handcrafted gold jewellery accessible with radical transparency.\n\nVision: A world where every woman owns at least one piece of jewellery that tells her story.";
@@ -32,7 +32,7 @@ export default function AboutView() {
       {/* hero */}
       <section className="relative flex min-h-[46vh] items-center justify-center overflow-hidden bg-[#0A0A0A] pt-24">
         { }
-        <img src="/images/brand/atelier.png" alt="The Aurelia atelier" className="absolute inset-0 h-full w-full object-cover opacity-35" />
+        <img src="/images/brand/atelier.png" alt="The LN Jewellers atelier" className="absolute inset-0 h-full w-full object-cover opacity-35" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0A]/70 via-transparent to-[#0A0A0A]" />
         <div className="relative mx-auto max-w-3xl px-4 py-20 text-center">
           <Reveal>
@@ -104,7 +104,7 @@ export default function AboutView() {
             <div className="relative">
               <div className="absolute -left-3 -top-3 h-full w-full rounded-xl border border-[#D4AF37]/50" aria-hidden />
               { }
-              <img src="/images/brand/artisan.png" alt="Aurelia master karigar at the bench" className="relative aspect-[4/3] w-full rounded-xl object-cover" />
+              <img src="/images/brand/artisan.png" alt="LN Jewellers master karigar at the bench" className="relative aspect-[4/3] w-full rounded-xl object-cover" />
             </div>
           </Reveal>
           <Reveal delay={0.1}>
@@ -112,7 +112,7 @@ export default function AboutView() {
               <p className="text-[11px] uppercase tracking-[0.35em] text-[#A8862A]">The hands behind the gold</p>
               <h2 className="mt-3 font-serif text-3xl md:text-4xl">Master karigars, four decades deep</h2>
               <p className="mt-5 leading-relaxed text-muted-foreground">
-                Ustad Ramesh-ji has set stones for 42 years. Suresh-ji can draw a filigree pattern finer than a laser. Every Aurelia apprentice trains three years under a master before touching a client&apos;s piece — a chain of knowledge older than the shop itself.
+                Ustad Ramesh-ji has set stones for 42 years. Suresh-ji can draw a filigree pattern finer than a laser. Every LN Jewellers apprentice trains three years under a master before touching a client&apos;s piece — a chain of knowledge older than the shop itself.
               </p>
               <p className="mt-4 leading-relaxed text-muted-foreground">
                 When you order, you can ask who made your piece. We&apos;ll tell you. That accountability is our quiet luxury.

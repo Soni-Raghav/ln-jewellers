@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { CartItem, StoreSettingsDTO, ViewName, ViewParams } from "@/lib/types";
+import type { CartItem, StoreSettingsDTO, ViewName, ViewParams, AuthUser } from "@/lib/types";
 
 interface AppState {
   // ---- hash-based router (single-page) ----
@@ -36,6 +36,14 @@ interface AppState {
   adminName: string | null;
   setAdmin: (name: string | null) => void;
 
+  // ---- customer auth (session lives in an httpOnly cookie) ----
+  user: AuthUser | null;
+  setUser: (u: AuthUser | null) => void;
+  authOpen: boolean;
+  authMode: "login" | "register";
+  openAuth: (mode?: "login" | "register") => void;
+  setAuthOpen: (v: boolean) => void;
+
   // ---- store settings cache ----
   settings: StoreSettingsDTO | null;
   setSettings: (s: StoreSettingsDTO) => void;
@@ -59,6 +67,8 @@ function hashFor(view: ViewName, params: ViewParams = {}): string {
       return `#/product/${params.slug ?? ""}`;
     case "policy":
       return `#/policies/${params.policy ?? "shipping"}`;
+    case "invoice":
+      return `#/invoice/${params.orderNumber ?? ""}`;
     default:
       return `#/${view}`;
   }
@@ -96,6 +106,10 @@ function parseHash(hash: string): { view: ViewName; params: ViewParams } {
       return { view: "faq", params: {} };
     case "track":
       return { view: "track", params: {} };
+    case "account":
+      return { view: "account", params: {} };
+    case "invoice":
+      return { view: "invoice", params: { orderNumber: decodeURIComponent(tail || "") } };
     case "admin-login":
       return { view: "admin-login", params: {} };
     case "admin":
@@ -223,6 +237,13 @@ export const useApp = create<AppState>()(
       adminName: null,
       setAdmin: (name) => set({ isAdmin: !!name, adminName: name }),
 
+      user: null,
+      setUser: (u) => set({ user: u }),
+      authOpen: false,
+      authMode: "login",
+      openAuth: (mode = "login") => set({ authOpen: true, authMode: mode }),
+      setAuthOpen: (v) => set({ authOpen: v }),
+
       settings: null,
       setSettings: (s) => set({ settings: s }),
 
@@ -230,7 +251,7 @@ export const useApp = create<AppState>()(
       setSearchOpen: (v) => set({ searchOpen: v }),
     }),
     {
-      name: "aurelia-store",
+      name: "ln-store",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         cart: state.cart,

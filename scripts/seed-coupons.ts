@@ -8,7 +8,7 @@ const db = new PrismaClient();
 async function main() {
   const coupons = [
     {
-      code: "AURELIA10",
+      code: "LN10",
       description: "Launch offer — 10% off orders above ₹25,000",
       type: "PERCENT",
       value: 10,

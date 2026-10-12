@@ -36,6 +36,42 @@ export const ENGRAVING_FONTS: Record<EngravingFont, { label: string; wa: string;
 
 export const ENGRAVING_FONT_ORDER: EngravingFont[] = ["SERIF", "SCRIPT", "SANS"];
 
+/** Per-hand engraving fee — the atelier prices each lettering style separately
+ *  (script's flowing curves take the karigar longer than the classic serif hand).
+ *  Falls back to the base fee when a style-specific fee is missing. */
+export function engravingFeeFor(
+  settings: Pick<StoreSettingsDTO, "engravingFee" | "engravingFeeScript" | "engravingFeeSans"> | null | undefined,
+  font: EngravingFont | string | null | undefined
+): number {
+  const s = settings;
+  if (!s) return 0;
+  const base = Math.max(0, s.engravingFee ?? 0);
+  switch (font) {
+    case "SCRIPT":
+      return Math.max(0, s.engravingFeeScript ?? base);
+    case "SANS":
+      return Math.max(0, s.engravingFeeSans ?? base);
+    default:
+      return base; // SERIF (and any legacy value) — classic hand
+  }
+}
+
+/** Client-side engraving estimate across cart lines, honouring per-hand fees:
+ *  every engraved unit is chased by hand, so the style's fee applies per piece. */
+export function engravingTotals(
+  items: Pick<CartItem, "engravingText" | "engravingFont" | "quantity">[],
+  settings: Pick<StoreSettingsDTO, "engravingFee" | "engravingFeeScript" | "engravingFeeSans"> | null | undefined
+): { pieces: number; fee: number } {
+  let pieces = 0;
+  let fee = 0;
+  for (const it of items) {
+    if (!it.engravingText) continue;
+    pieces += it.quantity;
+    fee += it.quantity * engravingFeeFor(settings, it.engravingFont ?? "SERIF");
+  }
+  return { pieces, fee };
+}
+
 /** Human label for a stored font value — unknown/legacy values fall back to classic serif. */
 export function engravingFontLabel(font: string | null | undefined): string {
   const key = (font as EngravingFont) ?? "SERIF";
@@ -81,7 +117,7 @@ export function waProductInquiry(
   opts?: { variantName?: string | null; quantity?: number; price?: number }
 ): string {
   const lines = [
-    `Hello ${"Aurelia Jewels"}! ◆`,
+    `Hello ${"LN Jewellers"}! ◆`,
     ``,
     `I'm interested in this piece from your website:`,
     `• *${product.name}*`,
@@ -98,7 +134,7 @@ export function waProductInquiry(
 export function waGeneralInquiry(settings: Pick<StoreSettingsDTO, "whatsappNumber">): string {
   return waLink(
     settings.whatsappNumber,
-    `Hello Aurelia Jewels! ◆\n\nI'd love to know more about your handcrafted jewelry collections.`
+    `Hello LN Jewellers! ◆\n\nI'd love to know more about your handcrafted jewelry collections.`
   );
 }
 
@@ -148,7 +184,7 @@ export function waCartInquiry(
   totals: WaTotals
 ): string {
   const lines = [
-    `Hello Aurelia Jewels! ◆`,
+    `Hello LN Jewellers! ◆`,
     ``,
     `I'd like to place an order / inquire about these pieces:`,
     ``,
@@ -173,7 +209,7 @@ export function waOrderMessage(
   customer: { name: string; phone: string; address: string; city: string; state: string; pincode: string }
 ): string {
   const lines = [
-    `Hello Aurelia Jewels! ◆`,
+    `Hello LN Jewellers! ◆`,
     ``,
     `I've just placed order *${orderNumber}* on your website and would like to confirm it:`,
     ``,

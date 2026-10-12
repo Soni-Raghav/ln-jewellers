@@ -1,4 +1,4 @@
-// Shared TypeScript types for Aurelia Jewels
+// Shared TypeScript types for LN Jewellers
 
 export interface Category {
   id: string;
@@ -41,6 +41,7 @@ export interface Review {
   title?: string | null;
   comment: string;
   approved: boolean;
+  helpfulCount?: number;
   createdAt: string;
 }
 
@@ -168,6 +169,8 @@ export interface StoreSettingsDTO {
   giftWrapFee: number;
   engravingEnabled: boolean;
   engravingFee: number;
+  engravingFeeScript: number;
+  engravingFeeSans: number;
   appointmentVisitCapacity: number;
   appointmentVideoCapacity: number;
   aboutStory: string;
@@ -282,10 +285,19 @@ export type ViewName =
   | "faq"
   | "policy"
   | "track"
+  | "invoice"
+  | "account"
   | "admin-login"
   | "admin"
   | "collection"
   | "404";
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: "ADMIN" | "CUSTOMER";
+}
 
 export interface ViewParams {
   slug?: string;
@@ -293,4 +305,6 @@ export interface ViewParams {
   category?: string;
   policy?: "shipping" | "returns" | "privacy" | "terms";
   q?: string;
+  orderNumber?: string; // invoice view — LN-… order number
+  orderEmail?: string; // invoice view — billing email (verification for the order API)
 }

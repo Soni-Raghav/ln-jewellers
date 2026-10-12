@@ -138,7 +138,7 @@ export default function AdminView() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0A0A0A] text-[#FAF7F0]">
         <Gem className="size-8 text-[#D4AF37]" />
-        <p className="font-serif text-xl tracking-wide">Aurelia Atelier</p>
+        <p className="font-serif text-xl tracking-wide">LN Atelier</p>
         <div className="flex items-center gap-2 text-sm text-[#8A857B]">
           <Loader2 className="size-4 animate-spin text-[#D4AF37]" />
           Preparing your console…
@@ -162,7 +162,7 @@ export default function AdminView() {
             <Gem className="size-5 shrink-0 text-[#D4AF37]" aria-hidden />
             <div className="min-w-0">
               <p className="truncate font-serif text-base leading-tight sm:text-lg">
-                Aurelia Atelier <span className="text-[#D4AF37]">·</span> Admin
+                LN Atelier <span className="text-[#D4AF37]">·</span> Admin
               </p>
               <p className="hidden text-[10px] uppercase tracking-[0.25em] text-[#8A857B] sm:block">
                 Jewelry management console
@@ -326,7 +326,7 @@ function LoginCard({ onSuccess }: { onSuccess: (name: string) => void }) {
       <Card className="w-full max-w-md border-[#D4AF37]/25 bg-[#161513] shadow-[0_24px_80px_-24px_rgba(212,175,55,0.25)]">
         <CardHeader className="items-center text-center">
           <Gem className="mb-1 size-8 text-[#D4AF37]" aria-hidden />
-          <p className="text-[10px] uppercase tracking-[0.35em] text-[#8A857B]">Aurelia Jewels</p>
+          <p className="text-[10px] uppercase tracking-[0.35em] text-[#8A857B]">LN Jewellers</p>
           <CardTitle className="font-serif text-2xl text-[#FAF7F0]">
             Atelier <span className="italic text-[#D4AF37]">Console</span>
           </CardTitle>
@@ -344,7 +344,7 @@ function LoginCard({ onSuccess }: { onSuccess: (name: string) => void }) {
                 id="admin-email"
                 type="email"
                 autoComplete="username"
-                placeholder="admin@aureliajewels.com"
+                placeholder="admin@lnjewellers.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

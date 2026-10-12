@@ -12,11 +12,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import {
   Heart, Share2, Minus, Plus, ShoppingBag, MessageCircle, Truck, RefreshCcw,
   ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ChevronDown, ZoomIn, PenLine, BellRing,
-  Images, Rotate3d, Move3d, Camera, RotateCw,
+  Images, Rotate3d, Move3d, Camera, RotateCw, ThumbsUp,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate, ENGRAVING_FONTS, ENGRAVING_FONT_ORDER } from "@/lib/format";
-import type { Product, ProductQuestionDTO, EngravingFont } from "@/lib/types";
+import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate, ENGRAVING_FONTS, ENGRAVING_FONT_ORDER, engravingFeeFor } from "@/lib/format";
+import type { Product, ProductQuestionDTO, EngravingFont, Review } from "@/lib/types";
 import RecentlyViewed, { pushRecent } from "@/components/storefront/RecentlyViewed";
 import SizeGuideDialog from "@/components/storefront/SizeGuideDialog";
 import NotifyMeDialog from "@/components/storefront/NotifyMeDialog";
@@ -165,7 +165,7 @@ export default function ProductView() {
       const url = capture();
       const a = document.createElement("a");
       a.href = url;
-      a.download = `aurelia-${product?.slug ?? "piece"}-3d.png`;
+      a.download = `ln-${product?.slug ?? "piece"}-3d.png`;
       a.click();
       toast.success("3D snapshot saved to your device", { description: "Share it with someone special." });
     } catch {
@@ -184,10 +184,10 @@ export default function ProductView() {
     try {
       const dataUrl = capture();
       const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], `aurelia-${product?.slug ?? "piece"}-3d.png`, { type: "image/png" });
-      const shareText = `${product?.name ?? "This piece"} — viewed in 3D at Aurelia Jewels ✨`;
+      const file = new File([blob], `ln-${product?.slug ?? "piece"}-3d.png`, { type: "image/png" });
+      const shareText = `${product?.name ?? "This piece"} — viewed in 3D at LN Jewellers ✨`;
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: product?.name ?? "Aurelia Jewels", text: shareText });
+        await navigator.share({ files: [file], title: product?.name ?? "LN Jewellers", text: shareText });
         return;
       }
       // Fallback: keep the image locally + offer WhatsApp with the product link
@@ -216,7 +216,7 @@ export default function ProductView() {
     const url = typeof window !== "undefined" ? window.location.href : "";
     if (navigator.share) {
       try {
-        await navigator.share({ title: product.name, text: `${product.name} — Aurelia Jewels`, url });
+        await navigator.share({ title: product.name, text: `${product.name} — LN Jewellers`, url });
       } catch {
         /* user dismissed */
       }
@@ -251,7 +251,7 @@ export default function ProductView() {
         sku: product.sku,
         description: product.shortDescription ?? product.description,
         image: product.images?.map((i) => i) ?? [],
-        brand: { "@type": "Brand", name: "Aurelia Jewels" },
+        brand: { "@type": "Brand", name: "LN Jewellers" },
         material: product.material,
         offers: {
           "@type": "Offer",
@@ -593,14 +593,15 @@ export default function ProductView() {
                 <PenLine className="h-4 w-4 shrink-0 text-[#A8862A]" />
                 <span className="text-sm font-medium">Add hand engraving</span>
                 <span className="ml-auto text-xs font-medium text-[#7a611f]">
-                  {settings ? `+${formatINR(settings.engravingFee)} / piece` : "Personalise it"}
+                  {settings ? `+${formatINR(engravingFeeFor(settings, engravingFont))} / piece · ${ENGRAVING_FONTS[engravingFont].label}` : "Personalise it"}
                 </span>
                 <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${engravingOpen ? "rotate-180" : ""}`} />
               </button>
               {(engravingOpen || engravingText.trim()) && (
                 <div className="px-4 pb-4">
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    A name, date or promise — chased into the metal by our master karigar. Each engraved piece carries the fee.
+                    A name, date or promise — chased into the metal by our master karigar. Each hand prices its own
+                    labour: flowing script is the slowest, classic serif the timeless default.
                   </p>
                   <Input
                     value={engravingText}
@@ -654,6 +655,11 @@ export default function ProductView() {
                             <span className={`text-[10px] leading-tight ${active ? "font-medium text-[#5d4a13]" : "text-muted-foreground"}`}>
                               {ENGRAVING_FONTS[f].label}
                             </span>
+                            {settings && (
+                              <span className={`text-[10px] leading-none ${active ? "font-semibold text-[#A8862A]" : "text-[#A8862A]/70"}`}>
+                                +{formatINR(engravingFeeFor(settings, f))}
+                              </span>
+                            )}
                           </button>
                         );
                       })}
@@ -753,16 +759,7 @@ export default function ProductView() {
         {product.reviews && product.reviews.length > 0 ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {product.reviews.map((r) => (
-              <figure key={r.id} className="flex flex-col rounded-xl border border-[#D4AF37]/25 bg-white p-6">
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className={`h-4 w-4 ${i < r.rating ? "fill-[#D4AF37] text-[#D4AF37]" : "text-border"}`} />
-                  ))}
-                </div>
-                {r.title && <figcaption className="mt-3 font-serif text-lg">{r.title}</figcaption>}
-                <blockquote className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">“{r.comment}”</blockquote>
-                <p className="mt-4 text-xs text-muted-foreground">{r.name} · {formatDate(r.createdAt)}</p>
-              </figure>
+              <ReviewCard key={r.id} review={r} />
             ))}
           </div>
         ) : (
@@ -837,6 +834,83 @@ export default function ProductView() {
         productName={product.name}
       />
     </div>
+  );
+}
+
+/** One client review with a "was this helpful?" vote — votes persist on the
+ *  review row and repeat votes from this browser are remembered locally. */
+function ReviewCard({ review }: { review: Review }) {
+  const [helpful, setHelpful] = useState(review.helpfulCount ?? 0);
+  // Lazy initializer reads the dedup list once at mount — no effect needed.
+  const [voted, setVoted] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return (JSON.parse(localStorage.getItem("ln_helpful") || "[]") as string[]).includes(review.id);
+    } catch {
+      return false;
+    }
+  });
+
+  const markVotedLocally = (id: string) => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("ln_helpful") || "[]") as string[];
+      localStorage.setItem("ln_helpful", JSON.stringify([...new Set([...raw, id])]));
+    } catch {
+      /* private mode etc. — the vote itself still counted server-side */
+    }
+  };
+
+  const vote = async () => {
+    if (voted) return;
+    setVoted(true); // optimistic — prevents double-click double votes
+    setHelpful((n) => n + 1);
+    try {
+      const res = await fetch(`/api/reviews/${encodeURIComponent(review.id)}/helpful`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok && typeof data.helpfulCount === "number") {
+        setHelpful(data.helpfulCount);
+        markVotedLocally(review.id);
+        toast.success("Thank you — feedback from clients like you guides the atelier.");
+      } else {
+        setVoted(false);
+        setHelpful((n) => Math.max(0, n - 1));
+        toast.error(data.error ?? "Could not record your vote");
+      }
+    } catch {
+      setVoted(false);
+      setHelpful((n) => Math.max(0, n - 1));
+      toast.error("Network error — please try again");
+    }
+  };
+
+  return (
+    <figure className="flex flex-col rounded-xl border border-[#D4AF37]/25 bg-white p-6">
+      <div className="flex gap-0.5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star key={i} className={`h-4 w-4 ${i < review.rating ? "fill-[#D4AF37] text-[#D4AF37]" : "text-border"}`} />
+        ))}
+      </div>
+      {review.title && <figcaption className="mt-3 font-serif text-lg">{review.title}</figcaption>}
+      <blockquote className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">“{review.comment}”</blockquote>
+      <p className="mt-4 text-xs text-muted-foreground">{review.name} · {formatDate(review.createdAt)}</p>
+      <div className="mt-3 flex items-center justify-between border-t border-border/70 pt-3">
+        {voted ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#D4AF37]/10 px-3 py-1.5 text-[11px] font-medium text-[#7a611f]">
+            <ThumbsUp className="h-3.5 w-3.5 fill-[#D4AF37]/40" aria-hidden />
+            {helpful} {helpful === 1 ? "client found" : "clients found"} this helpful
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={vote}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/40 px-3 py-1.5 text-[11px] font-medium text-[#7a611f] transition-colors hover:border-[#D4AF37] hover:bg-[#D4AF37]/10"
+            aria-label="Mark this review as helpful"
+          >
+            <ThumbsUp className="h-3.5 w-3.5" aria-hidden /> Helpful{helpful > 0 ? ` · ${helpful}` : ""}
+          </button>
+        )}
+      </div>
+    </figure>
   );
 }
 
@@ -977,7 +1051,7 @@ function QuestionsSection({ slug, productName }: { slug: string; productName: st
                 <div className="min-w-0">
                   <p className="text-sm leading-relaxed text-muted-foreground">{q.answer}</p>
                   <p className="mt-1.5 text-[11px] uppercase tracking-widest text-[#A8862A]">
-                    Aurelia Atelier{q.answeredAt ? ` · ${formatDate(q.answeredAt)}` : ""}
+                    LN Atelier{q.answeredAt ? ` · ${formatDate(q.answeredAt)}` : ""}
                   </p>
                 </div>
               </div>

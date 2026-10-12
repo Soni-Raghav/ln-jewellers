@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ProductCard — premium editorial product card for Aurelia Jewels.
+ * ProductCard — premium editorial product card for LN Jewellers.
  *
  * - Whole card navigates to the product view (or calls `onOpen`).
  * - Hover reveals a quick-add button (default/first available variant,
