@@ -96,6 +96,7 @@ export interface CartItem {
   quantity: number;
   variantName?: string | null;
   maxStock: number;
+  engravingText?: string | null; // per-piece inscription set on the product page
 }
 
 export interface OrderItemDTO {
@@ -108,6 +109,7 @@ export interface OrderItemDTO {
   unitPrice: number;
   quantity: number;
   lineTotal: number;
+  engravingText?: string | null;
 }
 
 export interface OrderDTO {
@@ -134,6 +136,7 @@ export interface OrderDTO {
   couponDiscount?: number;
   giftWrap?: boolean;
   giftWrapFee?: number;
+  giftMessage?: string | null;
   engravingText?: string | null;
   engravingFee?: number;
   cancelRequested?: boolean;
@@ -161,6 +164,7 @@ export interface StoreSettingsDTO {
   giftWrapFee: number;
   engravingEnabled: boolean;
   engravingFee: number;
+  appointmentSlotCapacity: number;
   aboutStory: string;
   missionVision: string;
   shippingPolicy: string;

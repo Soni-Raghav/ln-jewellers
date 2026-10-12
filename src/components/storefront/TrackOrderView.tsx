@@ -30,6 +30,7 @@ interface TrackedOrder {
   couponDiscount?: number;
   giftWrap?: boolean;
   giftWrapFee?: number;
+  giftMessage?: string | null;
   engravingText?: string | null;
   engravingFee?: number;
   cancelRequested?: boolean;
@@ -39,7 +40,7 @@ interface TrackedOrder {
   tax: number;
   total: number;
   createdAt: string;
-  items: { name: string; sku: string; variantName: string | null; image: string | null; quantity: number; lineTotal: number }[];
+  items: { name: string; sku: string; variantName: string | null; image: string | null; quantity: number; lineTotal: number; engravingText?: string | null }[];
 }
 
 const STAGES = [
@@ -252,6 +253,12 @@ export default function TrackOrderView() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{i.name}</p>
                   <p className="text-xs text-muted-foreground">{i.sku}{i.variantName ? ` · ${i.variantName}` : ""} · Qty {i.quantity}</p>
+                  {(i.engravingText) && (
+                    <p className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/8 px-2 py-0.5 text-[11px] text-[#7a611f]">
+                      <PenLine className="h-3 w-3 shrink-0" aria-hidden />
+                      <span className="truncate font-serif italic tracking-wider">“{i.engravingText}”</span>
+                    </p>
+                  )}
                 </div>
                 <p className="text-sm font-medium">{formatINR(i.lineTotal)}</p>
               </div>
@@ -269,6 +276,9 @@ export default function TrackOrderView() {
             {!!order.engravingText && !!order.engravingFee && order.engravingFee > 0 && (
               <p className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1"><PenLine className="h-3.5 w-3.5" /> Engraving “{order.engravingText}”</span><span>{formatINR(order.engravingFee)}</span></p>
             )}
+            {!order.engravingText && !!order.engravingFee && order.engravingFee > 0 && (
+              <p className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1"><PenLine className="h-3.5 w-3.5" /> Hand engraving</span><span>{formatINR(order.engravingFee)}</span></p>
+            )}
             <p className="flex justify-between text-muted-foreground"><span>GST</span><span>{formatINR(order.tax)}</span></p>
             <p className="flex justify-between text-base font-medium"><span>Total</span><span className="font-serif text-lg">{formatINR(order.total)}</span></p>
           </div>
@@ -276,6 +286,13 @@ export default function TrackOrderView() {
             <p className="mt-3 rounded-lg border border-[#D4AF37]/30 bg-[#D4AF37]/5 px-3 py-2 text-sm text-[#7a611f]">
               <span className="inline-flex flex-wrap items-center gap-1.5"><PenLine className="h-3.5 w-3.5 shrink-0" /> Hand-engraving request: <span className="font-serif italic tracking-wider">“{order.engravingText}”</span> — our karigar confirms placement before crafting.</span>
             </p>
+          )}
+          {order.giftMessage && (
+            <div className="relative mt-3 overflow-hidden rounded-lg border border-[#D4AF37]/40 bg-gradient-to-br from-[#FAF7F0] via-[#FBF6E9] to-[#F4EAD2] px-4 py-3">
+              <span aria-hidden className="absolute right-3 top-3 h-2 w-2 rotate-45 bg-[#D4AF37]/70" />
+              <p className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.35em] text-[#A8862A]"><Gift className="h-3 w-3" /> On the gift card</p>
+              <p className="mt-1 font-serif text-sm italic leading-relaxed text-[#1C1A16]">“{order.giftMessage}”</p>
+            </div>
           )}
           <div className="mt-5 flex flex-wrap gap-3 print:hidden">
             <Button

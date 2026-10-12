@@ -1,29 +1,17 @@
 import { db } from "@/lib/db";
 import { badRequest, handle, isEmail, isPhone, ok, sanitize, tooMany } from "@/lib/api-utils";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { TIME_SLOTS, istToday } from "@/lib/appointments";
 
 /**
  * POST /api/appointments — public booking request for a private atelier
  * viewing or a video consultation. Rate-limited, fully validated and
  * sanitized server-side; the atelier confirms each request personally.
+ * Each slot holds at most StoreSettings.appointmentSlotCapacity pending or
+ * confirmed bookings — the atelier's book never overbooks.
  */
 
 const TYPES = ["STORE_VISIT", "VIDEO_CALL"] as const;
-
-export const TIME_SLOTS = [
-  "11:00 AM",
-  "12:30 PM",
-  "2:00 PM",
-  "3:30 PM",
-  "5:00 PM",
-  "6:30 PM",
-] as const;
-
-/** Today (IST, UTC+5:30) as YYYY-MM-DD so "today" is bookable during IST hours. */
-function istToday(): string {
-  const now = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-  return now.toISOString().slice(0, 10);
-}
 
 export async function POST(req: Request) {
   return handle(async () => {
@@ -62,6 +50,18 @@ export async function POST(req: Request) {
     }
     if (!(TIME_SLOTS as readonly string[]).includes(timeSlot)) fields.timeSlot = "Choose one of the available time slots.";
     if (Object.keys(fields).length > 0) return badRequest("Please review the highlighted fields.", fields);
+
+    // ---- Slot capacity: the atelier's book never overbooks (server-side truth) ----
+    const settings = await db.storeSettings.findUnique({ where: { id: "singleton" }, select: { appointmentSlotCapacity: true } });
+    const capacity = Math.max(1, settings?.appointmentSlotCapacity ?? 2);
+    const taken = await db.appointment.count({
+      where: { date, timeSlot, status: { in: ["PENDING", "CONFIRMED"] } },
+    });
+    if (taken >= capacity) {
+      return badRequest("That slot is fully booked — please choose another time.", {
+        timeSlot: `${timeSlot} on ${date} is fully booked. Pick another slot or date — or message us on WhatsApp and we'll find room for you.`,
+      });
+    }
 
     const appointment = await db.appointment.create({
       data: { name, email, phone, type, date, timeSlot, notes: notes || null, status: "PENDING" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download, XCircle, ShieldCheck } from "lucide-react";
+import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download, XCircle, ShieldCheck, Gift } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -454,6 +454,14 @@ export default function OrdersManager() {
                       </span>
                     </p>
                   )}
+                  {detail.giftMessage && (
+                    <p className="mt-2 flex items-start gap-1.5 rounded border border-[#D4AF37]/40 bg-gradient-to-br from-[#FBF6E9] to-[#F4EAD2] px-2 py-1.5 text-xs text-[#7A5E14]">
+                      <Gift className="mt-0.5 size-3 shrink-0" aria-hidden />
+                      <span>
+                        Gift card: <span className="font-serif italic leading-relaxed">“{detail.giftMessage}”</span>
+                      </span>
+                    </p>
+                  )}
                 </div>
               </section>
 
@@ -480,6 +488,12 @@ export default function OrdersManager() {
                           {it.sku}
                           {it.variantName ? ` · ${it.variantName}` : ""}
                         </p>
+                        {it.engravingText && (
+                          <p className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/10 px-2 py-0.5 text-[10px] text-[#7A5E14]">
+                            <PenLine className="size-2.5 shrink-0" aria-hidden />
+                            <span className="truncate font-serif italic tracking-wider">“{it.engravingText}”</span>
+                          </p>
+                        )}
                       </div>
                       <div className="shrink-0 text-right">
                         <p className="text-sm tabular-nums text-[#1C1A16]">{formatINR(it.lineTotal)}</p>
@@ -506,6 +520,9 @@ export default function OrdersManager() {
                   )}
                   {!!detail.engravingText && !!detail.engravingFee && detail.engravingFee > 0 && (
                     <TotalRow label={`Engraving “${detail.engravingText}”`} value={formatINR(detail.engravingFee)} gold />
+                  )}
+                  {!detail.engravingText && !!detail.engravingFee && detail.engravingFee > 0 && (
+                    <TotalRow label="Hand engraving (per piece)" value={formatINR(detail.engravingFee)} gold />
                   )}
                   <TotalRow label="Tax" value={formatINR(detail.tax)} />
                 </div>

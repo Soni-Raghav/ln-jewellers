@@ -25,14 +25,14 @@ export async function GET() {
         "Customer", "Email", "Phone",
         "Address", "City", "State", "Pincode",
         "Items", "Subtotal", "Coupon", "CouponDiscount",
-        "GiftWrap", "GiftWrapFee", "Engraving", "EngravingFee",
+        "GiftWrap", "GiftWrapFee", "GiftMessage", "Engraving", "EngravingFee",
         "Shipping", "Tax", "Total",
       ].join(","),
     ];
 
     for (const o of orders) {
       const itemSummary = o.items
-        .map((i) => `${i.sku}${i.variantName ? ` (${i.variantName})` : ""} x${i.quantity}`)
+        .map((i) => `${i.sku}${i.variantName ? ` (${i.variantName})` : ""}${i.engravingText ? ` [engrave: ${i.engravingText}]` : ""} x${i.quantity}`)
         .join(" | ");
       rows.push(
         [
@@ -54,6 +54,7 @@ export async function GET() {
           o.couponDiscount,
           o.giftWrap ? "yes" : "no",
           o.giftWrapFee,
+          csvCell(o.giftMessage ?? ""),
           csvCell(o.engravingText ?? ""),
           o.engravingFee,
           o.shipping,

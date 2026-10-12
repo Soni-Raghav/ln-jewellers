@@ -3,7 +3,7 @@
 import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Minus, Plus, Trash2, ShoppingBag, MessageCircle, ArrowRight, Truck } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, MessageCircle, ArrowRight, Truck, PenLine, X } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, waCartInquiry } from "@/lib/format";
 
@@ -11,6 +11,7 @@ export default function CartView() {
   const cart = useApp((s) => s.cart);
   const updateQuantity = useApp((s) => s.updateQuantity);
   const removeFromCart = useApp((s) => s.removeFromCart);
+  const setItemEngraving = useApp((s) => s.setItemEngraving);
   const navigate = useApp((s) => s.navigate);
   const settings = useApp((s) => s.settings);
 
@@ -67,7 +68,7 @@ export default function CartView() {
           {cart.map((item) => {
             const unit = netPrice(item.unitPrice, item.discountPercent);
             return (
-              <div key={`${item.productId}-${item.variantId ?? "base"}`} className="flex gap-4 p-4 sm:gap-6 sm:p-6">
+              <div key={`${item.productId}-${item.variantId ?? "base"}-${item.engravingText ?? ""}`} className="flex gap-4 p-4 sm:gap-6 sm:p-6">
                 <button onClick={() => navigate("product", { slug: item.slug })} className="shrink-0 overflow-hidden rounded-lg border border-border">
                   { }
                   <img src={item.image || "/images/brand/atelier.png"} alt={item.name} className="h-24 w-24 object-cover sm:h-28 sm:w-28" />
@@ -84,9 +85,25 @@ export default function CartView() {
                       {item.discountPercent > 0 && (
                         <p className="mt-0.5 text-xs text-[#A8862A]">{item.discountPercent}% off applied</p>
                       )}
+                      {item.engravingText && (
+                        <p className="mt-1.5 inline-flex max-w-full items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/8 px-2.5 py-1 text-[11px] text-[#7a611f]">
+                          <PenLine className="h-3 w-3 shrink-0" aria-hidden />
+                          <span className="truncate font-serif italic tracking-wider">“{item.engravingText}”</span>
+                          <button
+                            onClick={() => {
+                              setItemEngraving(item.productId, item.variantId, item.engravingText, null);
+                              toast.info("Engraving removed from this piece");
+                            }}
+                            className="ml-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full hover:bg-[#D4AF37]/25"
+                            aria-label={`Remove engraving from ${item.name}`}
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </p>
+                      )}
                     </div>
                     <button
-                      onClick={() => { removeFromCart(item.productId, item.variantId); toast.info(`${item.name} removed`); }}
+                      onClick={() => { removeFromCart(item.productId, item.variantId, item.engravingText); toast.info(`${item.name} removed`); }}
                       className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                       aria-label={`Remove ${item.name} from bag`}
                     >
@@ -95,12 +112,12 @@ export default function CartView() {
                   </div>
                   <div className="mt-auto flex items-end justify-between pt-3">
                     <div className="flex items-center rounded-lg border border-[#D4AF37]/40">
-                      <button onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)} className="grid h-9 w-9 place-items-center text-muted-foreground hover:text-foreground" aria-label="Decrease quantity">
+                      <button onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1, item.engravingText)} className="grid h-9 w-9 place-items-center text-muted-foreground hover:text-foreground" aria-label="Decrease quantity">
                         <Minus className="h-3.5 w-3.5" />
                       </button>
                       <span className="w-9 text-center text-sm font-medium">{item.quantity}</span>
                       <button
-                        onClick={() => { updateQuantity(item.productId, item.variantId, item.quantity + 1); if (item.quantity >= item.maxStock) toast.info(`Only ${item.maxStock} available`); }}
+                        onClick={() => { updateQuantity(item.productId, item.variantId, item.quantity + 1, item.engravingText); if (item.quantity >= item.maxStock) toast.info(`Only ${item.maxStock} available`); }}
                         className="grid h-9 w-9 place-items-center text-muted-foreground hover:text-foreground"
                         aria-label="Increase quantity"
                       >
@@ -131,6 +148,12 @@ export default function CartView() {
           <Button onClick={() => navigate("checkout")} className="btn-shimmer mt-6 h-12 w-full bg-[#D4AF37] text-base font-medium text-black hover:bg-[#E6C87A]">
             Proceed to Checkout <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
+          {cart.some((i) => i.engravingText) && (
+            <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-[#D4AF37]/8 px-3 py-2 text-[11px] leading-relaxed text-[#7a611f]">
+              <PenLine className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+              Engraved pieces are hand-finished by our karigar before dispatch — the engraving fee is added at checkout.
+            </p>
+          )}
           {settings && (
             <a
               href={waCartInquiry(settings, cart, { subtotal, shipping, tax, total, couponCode: null, discount: 0 })}

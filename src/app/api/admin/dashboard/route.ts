@@ -51,8 +51,9 @@ export async function GET() {
     const pendingOrders = orders.filter((o) => ["PLACED", "CONFIRMED", "IN_PRODUCTION"].includes(o.status)).length;
 
     // ---- personalisation attach rates (cancelled orders excluded) ----
+    // engravingFee > 0 covers both legacy order-level inscriptions and per-piece engraving
     const eligible = orders.filter((o) => o.status !== "CANCELLED");
-    const engravingOrders = eligible.filter((o) => !!o.engravingText).length;
+    const engravingOrders = eligible.filter((o) => !!o.engravingText || o.engravingFee > 0).length;
     const giftWrapOrders = eligible.filter((o) => o.giftWrap).length;
     const pct = (n: number) => (eligible.length ? Math.round((n / eligible.length) * 100) : 0);
 

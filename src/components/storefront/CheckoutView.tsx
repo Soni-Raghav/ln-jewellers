@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket, Gift, PenLine } from "lucide-react";
+import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket, Gift, PenLine, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, waOrderMessage } from "@/lib/format";
 import type { CartItem, StoreSettingsDTO } from "@/lib/types";
@@ -23,11 +23,11 @@ interface PlacedOrder {
   shipping: number;
   giftWrap: boolean;
   giftWrapFee: number;
-  engravingText: string | null;
+  giftMessage: string | null;
   engravingFee: number;
   tax: number;
   total: number;
-  items: { name: string; sku: string; variantName: string | null; quantity: number; lineTotal: number }[];
+  items: { name: string; sku: string; variantName: string | null; quantity: number; lineTotal: number; engravingText?: string | null }[];
 }
 
 interface AppliedCoupon {
@@ -54,7 +54,7 @@ export default function CheckoutView() {
   const [couponMsg, setCouponMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [checkingCoupon, setCheckingCoupon] = useState(false);
   const [giftWrap, setGiftWrap] = useState(false);
-  const [engravingText, setEngravingText] = useState("");
+  const [giftMessage, setGiftMessage] = useState("");
 
   if (placed) {
     return (
@@ -84,10 +84,17 @@ export default function CheckoutView() {
           <h2 className="font-serif text-lg">Order {placed.orderNumber}</h2>
           <div className="mt-3 space-y-1.5 text-sm">
             {placed.items.map((i, idx) => (
-              <p key={idx} className="flex justify-between gap-3 text-muted-foreground">
-                <span>{i.name}{i.variantName ? ` (${i.variantName})` : ""} × {i.quantity}</span>
-                <span className="shrink-0">{formatINR(i.lineTotal)}</span>
-              </p>
+              <div key={idx}>
+                <p className="flex justify-between gap-3 text-muted-foreground">
+                  <span>{i.name}{i.variantName ? ` (${i.variantName})` : ""} × {i.quantity}</span>
+                  <span className="shrink-0">{formatINR(i.lineTotal)}</span>
+                </p>
+                {i.engravingText && (
+                  <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-[#7a611f]">
+                    <PenLine className="h-3 w-3" /> Engraved “{i.engravingText}”
+                  </p>
+                )}
+              </div>
             ))}
             <Separator className="my-2" />
             <p className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{formatINR(placed.subtotal)}</span></p>
@@ -98,12 +105,18 @@ export default function CheckoutView() {
             {placed.giftWrapFee > 0 && (
               <p className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1"><Gift className="h-3.5 w-3.5" /> Signature gift wrap</span><span>{formatINR(placed.giftWrapFee)}</span></p>
             )}
-            {placed.engravingFee > 0 && placed.engravingText && (
-              <p className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1"><PenLine className="h-3.5 w-3.5" /> Engraving “{placed.engravingText}”</span><span>{formatINR(placed.engravingFee)}</span></p>
+            {placed.engravingFee > 0 && (
+              <p className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1"><PenLine className="h-3.5 w-3.5" /> Hand engraving</span><span>{formatINR(placed.engravingFee)}</span></p>
             )}
             <p className="flex justify-between text-muted-foreground"><span>GST</span><span>{formatINR(placed.tax)}</span></p>
             <p className="flex justify-between font-medium text-foreground"><span>Total</span><span>{formatINR(placed.total)}</span></p>
           </div>
+          {placed.giftMessage && (
+            <div className="mt-4 rounded-lg border border-[#D4AF37]/40 bg-[#FAF7F0] px-4 py-3">
+              <p className="text-[9px] uppercase tracking-[0.35em] text-[#A8862A]">On the gift card</p>
+              <p className="mt-1 font-serif text-sm italic leading-relaxed text-[#1C1A16]">“{placed.giftMessage}”</p>
+            </div>
+          )}
         </div>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button variant="outline" className="border-[#D4AF37]/50" onClick={() => navigate("track")}>Track this order</Button>
@@ -128,7 +141,8 @@ export default function CheckoutView() {
   const taxRate = settings?.taxRatePercent ?? 3;
   const giftWrapFee = giftWrap ? (settings?.giftWrapFee ?? 0) : 0;
   const engravingEnabled = settings ? settings.engravingEnabled !== false : true;
-  const engravingFee = engravingText.trim() ? (settings?.engravingFee ?? 0) : 0;
+  const engravedPieces = engravingEnabled ? cart.reduce((n, i) => n + (i.engravingText ? i.quantity : 0), 0) : 0;
+  const engravingFee = engravedPieces * (settings?.engravingFee ?? 0);
   const couponDiscount = appliedCoupon?.discountAmount ?? 0;
   const tax = Math.round(((subtotal - couponDiscount) * taxRate) / 100);
   const total = subtotal - couponDiscount + shipping + tax + giftWrapFee + engravingFee;
@@ -185,9 +199,9 @@ export default function CheckoutView() {
           ...form,
           couponCode: appliedCoupon?.code ?? "",
           giftWrap,
-          engravingText: engravingText.trim(),
+          giftMessage: giftWrap ? giftMessage.trim() : "",
           paymentMethod: method,
-          items: cart.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
+          items: cart.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, engravingText: i.engravingText ?? "" })),
         }),
       });
       const data = await res.json();
@@ -205,7 +219,7 @@ export default function CheckoutView() {
               settings as StoreSettingsDTO,
               order.orderNumber,
               cart,
-              { subtotal: order.subtotal, shipping: order.shipping, tax: order.tax, total: order.total, couponCode: order.couponCode, discount: order.couponDiscount, giftWrap: order.giftWrap, giftWrapFee: order.giftWrapFee, engravingText: order.engravingText, engravingFee: order.engravingFee },
+              { subtotal: order.subtotal, shipping: order.shipping, tax: order.tax, total: order.total, couponCode: order.couponCode, discount: order.couponDiscount, giftWrap: order.giftWrap, giftWrapFee: order.giftWrapFee, giftMessage: order.giftMessage, engravingFee: order.engravingFee },
               { name: form.customerName, phone: form.phone, address: form.address, city: form.city, state: form.state, pincode: form.pincode }
             )
           : "";
@@ -284,7 +298,7 @@ export default function CheckoutView() {
             </div>
           </section>
 
-          {/* gift wrap */}
+          {/* gift wrap + gift message */}
           <section className="rounded-xl border border-[#D4AF37]/25 bg-white p-6" aria-labelledby="gift-heading">
             <h2 id="gift-heading" className="font-serif text-xl">Finishing touches</h2>
             <label
@@ -309,42 +323,71 @@ export default function CheckoutView() {
               </div>
             </label>
 
-            {/* engraving */}
+            {/* gift-card message — appears once wrap is chosen */}
+            {giftWrap && (
+              <div className="mt-3 rounded-lg border border-[#D4AF37] bg-[#D4AF37]/5 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#A8862A]" />
+                  <p className="font-medium">Message on the gift card</p>
+                  <span className="ml-auto text-[11px] text-muted-foreground">optional</span>
+                </div>
+                <div className="mt-3">
+                  <Textarea
+                    value={giftMessage}
+                    onChange={(e) => setGiftMessage(e.target.value.slice(0, 200))}
+                    rows={3}
+                    maxLength={200}
+                    aria-label="Message on the gift card"
+                    placeholder="e.g. For Amma — everything gold reminds me of you. Happy 60th."
+                    className="border-[#D4AF37]/40 bg-white font-serif italic leading-relaxed"
+                  />
+                  <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Hand-written by our concierge on an ivory note card</span>
+                    <span className={giftMessage.length >= 180 ? "font-medium text-[#7a611f]" : ""} aria-live="polite">{giftMessage.length}/200</span>
+                  </div>
+                </div>
+                {/* live note-card preview */}
+                {giftMessage.trim() && (
+                  <div aria-hidden className="relative mt-3 overflow-hidden rounded-md border border-[#D4AF37]/40 bg-gradient-to-br from-[#FAF7F0] via-[#FBF6E9] to-[#F4EAD2] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                    <span aria-hidden className="absolute right-3 top-3 h-2 w-2 rotate-45 bg-[#D4AF37]/70" />
+                    <p className="text-[9px] uppercase tracking-[0.35em] text-[#A8862A]">Gift card preview</p>
+                    <p className="mt-1.5 break-words font-serif text-sm italic leading-relaxed text-[#1C1A16]">“{giftMessage.trim()}”</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* per-piece engraving — set on each product page, shown here so the guest can verify */}
             {engravingEnabled && (
-              <div
-                className={`mt-3 rounded-lg border p-4 transition-colors ${
-                  engravingText.trim() ? "border-[#D4AF37] bg-[#D4AF37]/5" : "border-border"
-                }`}
-              >
+              <div className={`mt-3 rounded-lg border p-4 ${cart.some((i: CartItem) => i.engravingText) ? "border-[#D4AF37] bg-[#D4AF37]/5" : "border-border"}`}>
                 <div className="flex flex-wrap items-center gap-2">
                   <PenLine className="h-4 w-4 text-[#A8862A]" />
                   <p className="font-medium">Hand engraving by our master karigar</p>
-                  <span className="ml-auto text-sm font-medium text-[#7a611f]">+{formatINR(settings?.engravingFee ?? 0)}</span>
+                  {engravedPieces > 0 ? (
+                    <span className="ml-auto text-sm font-medium text-[#7a611f]">
+                      {engravedPieces} {engravedPieces === 1 ? "piece" : "pieces"} · {formatINR(engravingFee)}
+                    </span>
+                  ) : (
+                    <span className="ml-auto text-xs text-muted-foreground">{settings ? `+${formatINR(settings.engravingFee)} / piece` : ""}</span>
+                  )}
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  A name, date or promise — chased into the metal by hand. Ideal on rings, pendants and bangles.
-                </p>
-                <div className="mt-3">
-                  <Input
-                    value={engravingText}
-                    onChange={(e) => setEngravingText(e.target.value.slice(0, 60))}
-                    placeholder="e.g. A · R  14.02.2026"
-                    maxLength={60}
-                    aria-label="Engraving text"
-                    className="border-[#D4AF37]/40 bg-white tracking-wider"
-                  />
-                  <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>Up to 60 characters · letters, numbers &amp; . , · ’ &amp; –</span>
-                    <span className={engravingText.length >= 55 ? "font-medium text-[#7a611f]" : ""} aria-live="polite">{engravingText.length}/60</span>
-                  </div>
-                </div>
-                {/* live preview plate */}
-                <div aria-hidden className="mt-3 rounded-md border border-[#D4AF37]/40 bg-gradient-to-br from-[#FAF7F0] via-[#F7EFD9] to-[#EFE3C4] px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-                  <p className="text-[9px] uppercase tracking-[0.35em] text-[#A8862A]">Engraving preview</p>
-                  <p className="mt-1.5 break-words font-serif text-lg italic uppercase tracking-[0.2em] text-[#7a611f]">
-                    {engravingText.trim() || "Your inscription"}
+                {cart.some((i: CartItem) => i.engravingText) ? (
+                  <ul className="mt-3 space-y-2">
+                    {cart.filter((i: CartItem) => i.engravingText).map((i: CartItem) => (
+                      <li key={`${i.productId}-${i.variantId ?? "b"}-${i.engravingText}`} className="flex items-center gap-2.5 rounded-md border border-[#D4AF37]/30 bg-white px-3 py-2">
+                        <img src={i.image || "/images/brand/atelier.png"} alt="" className="h-8 w-8 rounded border border-border object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium">{i.name}{i.variantName ? ` · ${i.variantName}` : ""} × {i.quantity}</p>
+                          <p className="truncate font-serif text-xs italic tracking-wider text-[#7a611f]">“{i.engravingText}”</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    A name, date or promise — chased into the metal by hand. Add it from any product page under <span className="font-medium text-[#7a611f]">“Add hand engraving”</span>.
                   </p>
-                </div>
+                )}
               </div>
             )}
           </section>
@@ -395,12 +438,17 @@ export default function CheckoutView() {
             {cart.map((item: CartItem) => {
               const unit = netPrice(item.unitPrice, item.discountPercent);
               return (
-                <div key={`${item.productId}-${item.variantId ?? "b"}`} className="flex items-center gap-3">
+                <div key={`${item.productId}-${item.variantId ?? "b"}-${item.engravingText ?? ""}`} className="flex items-center gap-3">
                   { }
                   <img src={item.image || "/images/brand/atelier.png"} alt={item.name} className="h-14 w-14 rounded-md border border-border object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{item.name}</p>
                     <p className="text-xs text-muted-foreground"><span className="font-mono text-[10px]">{item.sku}</span>{item.variantName ? ` · ${item.variantName}` : ""} · Qty {item.quantity}</p>
+                    {item.engravingText && (
+                      <p className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/8 px-2 py-0.5 text-[10px] text-[#7a611f]">
+                        <PenLine className="h-2.5 w-2.5 shrink-0" /> <span className="truncate font-serif italic tracking-wider">“{item.engravingText}”</span>
+                      </p>
+                    )}
                   </div>
                   <p className="text-sm">{formatINR(unit * item.quantity)}</p>
                 </div>
@@ -417,8 +465,8 @@ export default function CheckoutView() {
             {giftWrapFee > 0 && (
               <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2 text-[#7a611f]"><span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest"><Gift className="h-3.5 w-3.5" /> Gift wrap</span><span className="font-medium">{formatINR(giftWrapFee)}</span></div>
             )}
-            {engravingFee > 0 && engravingText.trim() && (
-              <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2 text-[#7a611f]"><span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest"><PenLine className="h-3.5 w-3.5" /> Engraving</span><span className="font-medium">{formatINR(engravingFee)}</span></div>
+            {engravingFee > 0 && (
+              <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2 text-[#7a611f]"><span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest"><PenLine className="h-3.5 w-3.5" /> Engraving ×{engravedPieces}</span><span className="font-medium">{formatINR(engravingFee)}</span></div>
             )}
             <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2"><span className="text-xs uppercase tracking-widest text-muted-foreground">GST ({taxRate}%)</span><span className="font-medium">{formatINR(tax)}</span></div>
             <div className="flex items-baseline justify-between pt-3"><span className="font-serif">Total</span><span className="font-serif text-xl text-[#0A0A0A]">{formatINR(total)}</span></div>

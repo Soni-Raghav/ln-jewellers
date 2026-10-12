@@ -14,8 +14,9 @@ interface AppState {
   // ---- cart ----
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
-  removeFromCart: (productId: string, variantId?: string | null) => void;
-  updateQuantity: (productId: string, variantId: string | null | undefined, quantity: number) => void;
+  removeFromCart: (productId: string, variantId?: string | null, engravingText?: string | null) => void;
+  updateQuantity: (productId: string, variantId: string | null | undefined, quantity: number, engravingText?: string | null) => void;
+  setItemEngraving: (productId: string, variantId: string | null | undefined, from: string | null | undefined, to: string | null) => void;
   clearCart: () => void;
   cartCount: () => number;
   cartSubtotal: () => number;
@@ -126,10 +127,15 @@ export const useApp = create<AppState>()(
       },
 
       cart: [],
+      // Two lines are the same physical piece only when product, variant AND
+      // engraving match — an engraved "A · R" ring and a plain ring are separate lines.
       addToCart: (item) => {
         const cart = [...get().cart];
         const idx = cart.findIndex(
-          (c) => c.productId === item.productId && (c.variantId ?? null) === (item.variantId ?? null)
+          (c) =>
+            c.productId === item.productId &&
+            (c.variantId ?? null) === (item.variantId ?? null) &&
+            (c.engravingText ?? "") === (item.engravingText ?? "")
         );
         if (idx >= 0) {
           cart[idx] = {
@@ -141,20 +147,51 @@ export const useApp = create<AppState>()(
         }
         set({ cart });
       },
-      removeFromCart: (productId, variantId) =>
+      removeFromCart: (productId, variantId, engravingText) =>
         set({
           cart: get().cart.filter(
-            (c) => !(c.productId === productId && (c.variantId ?? null) === (variantId ?? null))
+            (c) =>
+              !(c.productId === productId && (c.variantId ?? null) === (variantId ?? null)) ||
+              (engravingText !== undefined && (c.engravingText ?? "") !== (engravingText ?? ""))
           ),
         }),
-      updateQuantity: (productId, variantId, quantity) => {
+      updateQuantity: (productId, variantId, quantity, engravingText) => {
         const cart = get()
           .cart.map((c) =>
-            c.productId === productId && (c.variantId ?? null) === (variantId ?? null)
+            c.productId === productId &&
+            (c.variantId ?? null) === (variantId ?? null) &&
+            (engravingText === undefined || (c.engravingText ?? "") === (engravingText ?? ""))
               ? { ...c, quantity: Math.max(1, Math.min(quantity, Math.max(c.maxStock, 1))) }
               : c
           )
           .filter((c) => c.quantity > 0);
+        set({ cart });
+      },
+      setItemEngraving: (productId, variantId, from, to) => {
+        const norm = (t: string | null | undefined) => (t ?? "").trim();
+        const target = norm(to) || null;
+        const cart = get().cart.map((c) => ({ ...c }));
+        const idx = cart.findIndex(
+          (c) =>
+            c.productId === productId &&
+            (c.variantId ?? null) === (variantId ?? null) &&
+            (c.engravingText ?? "") === norm(from)
+        );
+        if (idx < 0) return;
+        // If another line already carries the target engraving, merge into it.
+        const dup = cart.findIndex(
+          (c) =>
+            c !== cart[idx] &&
+            c.productId === productId &&
+            (c.variantId ?? null) === (variantId ?? null) &&
+            (c.engravingText ?? "") === (target ?? "")
+        );
+        if (dup >= 0) {
+          cart[dup].quantity = Math.min(cart[dup].quantity + cart[idx].quantity, Math.max(cart[dup].maxStock, 1));
+          cart.splice(idx, 1);
+        } else {
+          cart[idx].engravingText = target;
+        }
         set({ cart });
       },
       clearCart: () => set({ cart: [] }),

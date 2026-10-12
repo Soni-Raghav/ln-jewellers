@@ -9,6 +9,7 @@ interface IncomingItem {
   productId?: unknown;
   variantId?: unknown;
   quantity?: unknown;
+  engravingText?: unknown;
 }
 
 function generateOrderNumber(): string {
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
     const pincode = sanitize(body.pincode).slice(0, 10);
     const notes = sanitize(body.notes).slice(0, 500);
     const giftWrap = !!body.giftWrap;
-    const engravingText = sanitize(body.engravingText).slice(0, 60);
+    const giftMessage = sanitize(body.giftMessage).slice(0, 200);
     const paymentMethod = body.paymentMethod === "RAZORPAY" ? "RAZORPAY" : "WHATSAPP";
     const couponCodeRaw = sanitize(body.couponCode).toUpperCase().slice(0, 30);
 
@@ -47,7 +48,6 @@ export async function POST(req: Request) {
     if (!isNonEmpty(city, 80)) fields.city = "City is required";
     if (!isNonEmpty(state, 80)) fields.state = "State is required";
     if (!/^\d{6}$/.test(pincode)) fields.pincode = "6-digit PIN code required";
-    if (engravingText && !/[A-Za-z0-9]/.test(engravingText)) fields.engravingText = "Engraving must contain letters or numbers";
     if (Object.keys(fields).length) return badRequest("Validation failed", fields);
 
     // ---- Load settings for shipping/tax ----
@@ -58,14 +58,17 @@ export async function POST(req: Request) {
     const taxRate = settings.taxRatePercent;
 
     // ---- Recalculate EVERYTHING server-side. Never trust the client. ----
-    const incoming: { productId: string; variantId: string | null; quantity: number }[] = [];
+    const incoming: { productId: string; variantId: string | null; quantity: number; engravingText: string }[] = [];
     for (const raw of body.items.slice(0, 30) as IncomingItem[]) {
       const productId = sanitize(raw.productId).slice(0, 40);
       const variantId = raw.variantId ? sanitize(raw.variantId).slice(0, 40) : null;
       const quantity = Math.trunc(Number(raw.quantity));
+      const engravingText = sanitize(raw.engravingText).slice(0, 60);
       if (!productId || !Number.isFinite(quantity) || quantity < 1 || quantity > 20)
         return badRequest("Invalid item quantity");
-      incoming.push({ productId, variantId, quantity });
+      if (engravingText && !/[A-Za-z0-9]/.test(engravingText))
+        return badRequest("Engraving must contain letters or numbers");
+      incoming.push({ productId, variantId, quantity, engravingText });
     }
 
     const productIds = [...new Set(incoming.map((i) => i.productId))];
@@ -85,6 +88,7 @@ export async function POST(req: Request) {
       unitPrice: number;
       quantity: number;
       lineTotal: number;
+      engravingText: string | null;
       stockSource: { kind: "product" | "variant"; stock: number; track: boolean };
     };
 
@@ -120,6 +124,7 @@ export async function POST(req: Request) {
         unitPrice,
         quantity: item.quantity,
         lineTotal: unitPrice * item.quantity,
+        engravingText: null, // filled in below once engraving settings are known
         stockSource: { kind: variant ? "variant" : "product", stock, track },
       });
     }
@@ -138,11 +143,23 @@ export async function POST(req: Request) {
 
     const shipping = subtotal >= freeAbove ? 0 : shippingFee;
     const tax = Math.round(((subtotal - couponDiscount) * taxRate) / 100);
-    // Gift wrap + engraving fees are controlled by the atelier, never by the client
+    // Gift wrap, gift message and engraving fees are controlled by the atelier, never by the client.
     const giftWrapFee = giftWrap ? Math.max(0, settings.giftWrapFee ?? 0) : 0;
+    const finalGiftMessage = giftWrap ? giftMessage : "";
     const engravingEnabled = settings.engravingEnabled !== false;
-    const finalEngraving = engravingEnabled ? engravingText : "";
-    const engravingFee = finalEngraving ? Math.max(0, settings.engravingFee ?? 0) : 0;
+    // Per-piece engraving: each engraved unit is hand-chased by the karigar, so the
+    // atelier's fee applies per engraved piece (line quantity × fee).
+    let engravedPieces = 0;
+    if (engravingEnabled) {
+      for (const line of lines) {
+        const wanted = incoming.find((i) => i.productId === line.productId && (i.variantId ?? null) === (line.variantId ?? null) && i.engravingText);
+        if (wanted) {
+          line.engravingText = wanted.engravingText;
+          engravedPieces += line.quantity;
+        }
+      }
+    }
+    const engravingFee = engravedPieces * Math.max(0, settings.engravingFee ?? 0);
     const total = subtotal - couponDiscount + shipping + tax + giftWrapFee + engravingFee;
 
     // ---- Atomic transaction: create order + decrement stock safely ----
@@ -183,7 +200,8 @@ export async function POST(req: Request) {
             couponDiscount,
             giftWrap,
             giftWrapFee,
-            engravingText: finalEngraving || null,
+            giftMessage: finalGiftMessage || null,
+            engravingText: null, // per-piece inscriptions live on OrderItems now
             engravingFee,
             shipping,
             tax,
@@ -202,6 +220,7 @@ export async function POST(req: Request) {
                 unitPrice: l.unitPrice,
                 quantity: l.quantity,
                 lineTotal: l.lineTotal,
+                engravingText: l.engravingText,
               })),
             },
           },
@@ -252,6 +271,7 @@ export async function POST(req: Request) {
           couponDiscount: order.couponDiscount,
           giftWrap: order.giftWrap,
           giftWrapFee: order.giftWrapFee,
+          giftMessage: order.giftMessage,
           engravingText: order.engravingText,
           engravingFee: order.engravingFee,
           shipping: order.shipping,
@@ -266,6 +286,7 @@ export async function POST(req: Request) {
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             lineTotal: i.lineTotal,
+            engravingText: i.engravingText,
           })),
           totalsText: {
             subtotal: formatINR(order.subtotal),

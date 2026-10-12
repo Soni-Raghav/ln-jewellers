@@ -81,7 +81,12 @@ export default function AureliaApp() {
   // Hash router bootstrap + listener
   useEffect(() => {
     syncFromHash();
-    const onHash = () => syncFromHash();
+    const onHash = () => {
+      syncFromHash();
+      // Browser back/forward or a manually edited hash lands on a new view —
+      // start that view from the top (in-app navigate() already does this).
+      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }));
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, [syncFromHash]);

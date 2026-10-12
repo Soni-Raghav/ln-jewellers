@@ -7,8 +7,8 @@
  * Server-side validation/rate-limiting live in POST /api/appointments.
  */
 
-import { useMemo, useState } from "react";
-import { CalendarCheck2, CheckCircle2, Loader2, MapPin, Video } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarCheck2, CheckCircle2, Loader2, MapPin, Users, Video } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatLongDate } from "@/lib/format";
+import { TIME_SLOTS, istToday } from "@/lib/appointments";
 
-const TIME_SLOTS = ["11:00 AM", "12:30 PM", "2:00 PM", "3:30 PM", "5:00 PM", "6:30 PM"];
-
-/** Today in IST (the atelier's calendar) as YYYY-MM-DD. */
-function istToday(): string {
-  return new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
+type SlotInfo = { slot: string; remaining: number; full: boolean };
 
 type Confirmed = { date: string; timeSlot: string; typeLabel: string };
 
@@ -32,9 +28,43 @@ export default function AppointmentBooking() {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
+  const [slots, setSlots] = useState<SlotInfo[] | null>(null);
+  const [capacity, setCapacity] = useState<number | null>(null);
 
   const minDate = useMemo(() => istToday(), []);
   const today = minDate;
+
+  // Live per-slot availability from the atelier's book — full slots can't be picked.
+  useEffect(() => {
+    if (!form.date || !/\d{4}-\d{2}-\d{2}/.test(form.date)) {
+      setSlots(null);
+      return;
+    }
+    let cancelled = false;
+    setSlots(null);
+    fetch(`/api/appointments/availability?date=${form.date}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return;
+        if (d?.slots) {
+          setSlots(d.slots);
+          setCapacity(typeof d.capacity === "number" ? d.capacity : null);
+        } else {
+          setSlots(null); // fall back to the static slot list on failure
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSlots(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.date]);
+
+  const slotState = useCallback(
+    (s: string): SlotInfo => slots?.find((x) => x.slot === s) ?? { slot: s, remaining: 1, full: false },
+    [slots]
+  );
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -172,18 +202,35 @@ export default function AppointmentBooking() {
                 <select
                   id="appt-slot"
                   value={form.timeSlot}
-                  onChange={set("timeSlot")}
+                  onChange={(e) => {
+                    const chosen = e.target.value;
+                    const info = slots?.find((x) => x.slot === chosen);
+                    if (info?.full) {
+                      toast.info("That slot is fully booked — please choose another time.");
+                      return;
+                    }
+                    set("timeSlot")(e);
+                  }}
                   className="h-10 w-full rounded-md border border-[#D4AF37]/40 bg-[#FAF7F0] px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
                   required
                 >
                   <option value="">Select a slot…</option>
-                  {TIME_SLOTS.map((s) => (
-                    <option key={s} value={s}>
-                      {s} IST
-                    </option>
-                  ))}
+                  {TIME_SLOTS.map((s) => {
+                    const info = slotState(s);
+                    const suffix = info.full ? " — fully booked" : slots && info.remaining <= 1 ? ` — ${info.remaining} seat left` : "";
+                    return (
+                      <option key={s} value={s} disabled={info.full}>
+                        {s} IST{suffix}
+                      </option>
+                    );
+                  })}
                 </select>
                 {fields.timeSlot && <p className="mt-1 text-xs text-destructive">{fields.timeSlot}</p>}
+                {slots && capacity && (
+                  <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Users className="h-3 w-3 shrink-0" aria-hidden /> Up to {capacity} {capacity === 1 ? "guest" : "guests"} per private slot — availability shown live from the atelier&apos;s book.
+                  </p>
+                )}
               </div>
             </div>
 

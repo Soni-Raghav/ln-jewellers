@@ -78,7 +78,8 @@ type WaTotals = {
   discount?: number;
   giftWrap?: boolean;
   giftWrapFee?: number;
-  engravingText?: string | null;
+  giftMessage?: string | null;
+  engravingText?: string | null; // legacy order-level inscription
   engravingFee?: number;
 };
 
@@ -97,6 +98,8 @@ function waTotalsLines(totals: WaTotals): string[] {
   }
   if (totals.engravingText && totals.engravingFee && totals.engravingFee > 0) {
     lines.push(`Engraving ("${totals.engravingText}"): ${formatINR(totals.engravingFee)}`);
+  } else if (!totals.engravingText && totals.engravingFee && totals.engravingFee > 0) {
+    lines.push(`Hand engraving (per piece, as listed): ${formatINR(totals.engravingFee)}`);
   }
   lines.push(
     `GST (${3}%): ${formatINR(totals.tax)}`,
@@ -144,6 +147,7 @@ export function waOrderMessage(
   items.forEach((it, i) => {
     const variant = it.variantName ? ` (${it.variantName})` : "";
     lines.push(`${i + 1}. ${it.name}${variant} × ${it.quantity} — ${formatINR(netPrice(it.unitPrice, it.discountPercent) * it.quantity)}`);
+    if (it.engravingText) lines.push(`   ↳ engrave: “${it.engravingText}”`);
   });
   lines.push(
     ``,
@@ -153,7 +157,7 @@ export function waOrderMessage(
     `${customer.name}, ${customer.phone}`,
     `${customer.address}, ${customer.city}, ${customer.state} – ${customer.pincode}`,
     ``,
-    `Please confirm my order. Thank you!${totals.giftWrap ? " Please include the signature gift wrap." : ""}${totals.engravingText ? ` Please engrave: \u201c${totals.engravingText}\u201d.` : ""}`
+    `Please confirm my order. Thank you!${totals.giftWrap ? " Please include the signature gift wrap." : ""}${totals.giftMessage ? ` Gift card: “${totals.giftMessage}”` : ""}${totals.engravingText ? ` Please engrave: “${totals.engravingText}”.` : ""}`
   );
   return waLink(settings.whatsappNumber, lines.join("\n"));
 }

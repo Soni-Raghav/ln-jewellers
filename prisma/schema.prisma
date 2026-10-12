@@ -162,7 +162,8 @@ model Order {
   couponDiscount Float     @default(0)
   giftWrap      Boolean     @default(false)
   giftWrapFee   Float       @default(0)
-  engravingText String? // personalised inscription requested at checkout
+  giftMessage   String? // optional message printed on the gift card (gift wrap add-on)
+  engravingText String? // legacy order-level inscription (new orders engrave per item)
   engravingFee  Float       @default(0)
   cancelRequested   Boolean   @default(false) // customer asked the concierge to cancel
   cancelReason      String? // why the customer wants to cancel
@@ -191,6 +192,7 @@ model OrderItem {
   unitPrice   Float
   quantity    Int
   lineTotal   Float
+  engravingText String? // per-piece inscription (Order.engravingFee covers all engraved pieces)
   createdAt   DateTime        @default(now())
 
   @@index([orderId])
@@ -326,6 +328,7 @@ model StoreSettings {
   giftWrapFee      Float    @default(500)
   engravingEnabled Boolean  @default(true)
   engravingFee     Float    @default(1500)
+  appointmentSlotCapacity Int @default(2) // max pending+confirmed bookings per slot per day
   aboutStory       String   @default("")
   missionVision    String   @default("")
   shippingPolicy   String   @default("")

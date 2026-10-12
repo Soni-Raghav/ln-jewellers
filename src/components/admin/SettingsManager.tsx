@@ -50,6 +50,7 @@ const DEFAULT_SETTINGS: StoreSettingsDTO = {
   giftWrapFee: 500,
   engravingEnabled: true,
   engravingFee: 1500,
+  appointmentSlotCapacity: 2,
   aboutStory: "",
   missionVision: "",
   shippingPolicy: "",
@@ -107,6 +108,7 @@ export default function SettingsManager() {
         giftWrapFee: Math.max(0, Number(form.giftWrapFee) || 0),
         engravingEnabled: form.engravingEnabled,
         engravingFee: Math.max(0, Number(form.engravingFee) || 0),
+        appointmentSlotCapacity: Math.min(10, Math.max(1, Math.round(Number(form.appointmentSlotCapacity) || 2))),
         faq: faqRows.filter((r) => r.q.trim() || r.a.trim()),
         testimonials: testimonialRows
           .filter((r) => r.name.trim() || r.text.trim())
@@ -326,7 +328,7 @@ export default function SettingsManager() {
               <p className="text-xs text-[#8A8375]">Charged once per order when the shopper adds signature gift wrap.</p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-[#5A544A]">Engraving fee (₹)</Label>
+              <Label className="text-xs text-[#5A544A]">Engraving fee (₹ per piece)</Label>
               <Input
                 type="number"
                 min="0"
@@ -334,14 +336,26 @@ export default function SettingsManager() {
                 onChange={(e) => set("engravingFee", Number(e.target.value))}
                 className="border-[#E0D9C8] bg-white"
               />
-              <p className="text-xs text-[#8A8375]">Charged once per order that requests hand engraving.</p>
+              <p className="text-xs text-[#8A8375]">Charged for each engraved piece — guests inscribe pieces on the product page.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#5A544A]">Appointment guests per slot</Label>
+              <Input
+                type="number"
+                min="1"
+                max="10"
+                value={form.appointmentSlotCapacity}
+                onChange={(e) => set("appointmentSlotCapacity", Number(e.target.value))}
+                className="border-[#E0D9C8] bg-white"
+              />
+              <p className="text-xs text-[#8A8375]">Max pending + confirmed bookings per time slot per day. Full slots are hidden from booking.</p>
             </div>
             <div className="flex items-center gap-3">
               <Switch checked={form.engravingEnabled} onCheckedChange={(v) => set("engravingEnabled", v)} aria-label="Enable engraving" />
               <div>
                 <p className="text-sm font-medium text-[#1C1A16]">Hand engraving</p>
                 <p className="text-xs text-[#8A8375]">
-                  {form.engravingEnabled ? "Offered at checkout." : "Hidden from checkout."}
+                  {form.engravingEnabled ? "Offered on product pages." : "Hidden from the store."}
                 </p>
               </div>
             </div>

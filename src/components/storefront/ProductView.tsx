@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Heart, Share2, Minus, Plus, ShoppingBag, MessageCircle, Truck, RefreshCcw,
-  ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ZoomIn, PenLine, BellRing,
+  ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ChevronDown, ZoomIn, PenLine, BellRing,
   Images, Rotate3d, Move3d, Camera,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -40,6 +40,8 @@ export default function ProductView() {
   const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
   const [variantId, setVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
+  const [engravingText, setEngravingText] = useState("");
+  const [engravingOpen, setEngravingOpen] = useState(false);
   const [stickyBuy, setStickyBuy] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [mode, setMode] = useState<"photos" | "3d">("photos");
@@ -62,6 +64,8 @@ export default function ProductView() {
       setImgIdx(0);
       setQty(1);
       setMode("photos");
+      setEngravingText("");
+      setEngravingOpen(false);
       try {
         const res = await fetch(`/api/products/${encodeURIComponent(slug)}`);
         if (!res.ok) throw new Error();
@@ -119,6 +123,7 @@ export default function ProductView() {
 
   const handleAdd = (thenCheckout = false) => {
     if (!product || outOfStock) return;
+    const engraving = engravingText.trim();
     addToCart({
       productId: product.id,
       variantId: variant?.id ?? null,
@@ -131,8 +136,13 @@ export default function ProductView() {
       quantity: qty,
       variantName: variant?.name ?? null,
       maxStock: Math.max(maxStock, 1),
+      engravingText: engraving || null,
     });
-    toast.success(`${product.name} added to your bag`, { description: `${qty} × ${formatINR(display)}` });
+    toast.success(`${product.name} added to your bag`, {
+      description: engraving ? `${qty} × ${formatINR(display)} · engraved “${engraving}”` : `${qty} × ${formatINR(display)}`,
+    });
+    setEngravingText("");
+    setEngravingOpen(false);
     if (thenCheckout) navigate("checkout");
   };
 
@@ -152,6 +162,44 @@ export default function ProductView() {
       toast.success("3D snapshot saved to your device", { description: "Share it with someone special." });
     } catch {
       toast.error("Could not capture the stage — please try again.");
+    }
+  };
+
+  /** Share the 3D pose: native share sheet with the image when possible,
+   *  otherwise save it and hand off to WhatsApp with the product link. */
+  const handleSnapshotShare = async () => {
+    const capture = stageCaptureRef.current;
+    if (!capture) {
+      toast.error("The 3D view is still warming up — try again in a moment.");
+      return;
+    }
+    try {
+      const dataUrl = capture();
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], `aurelia-${product?.slug ?? "piece"}-3d.png`, { type: "image/png" });
+      const shareText = `${product?.name ?? "This piece"} — viewed in 3D at Aurelia Jewels ✨`;
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: product?.name ?? "Aurelia Jewels", text: shareText });
+        return;
+      }
+      // Fallback: keep the image locally + offer WhatsApp with the product link
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = file.name;
+      a.click();
+      if (settings) {
+        const digits = settings.whatsappNumber.replace(/\D/g, "");
+        window.open(
+          `https://wa.me/${digits}?text=${encodeURIComponent(`${shareText}\n${window.location.href}`)}`,
+          "_blank"
+        );
+        toast.success("Snapshot saved — WhatsApp opened with your view");
+      } else {
+        toast.success("Snapshot saved to your device");
+      }
+    } catch (err) {
+      if ((err as DOMException)?.name === "AbortError") return; // user closed the share sheet
+      toast.error("Could not share the stage — please try again.");
     }
   };
 
@@ -278,6 +326,14 @@ export default function ProductView() {
                   title="Save the current 3D view as an image"
                 >
                   <Camera className="h-3.5 w-3.5" /> Snapshot
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSnapshotShare}
+                  className="absolute bottom-4 left-[7.25rem] inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#0A0A0A]/70 px-3 py-1.5 text-[10px] uppercase tracking-widest text-[#E6C87A] backdrop-blur transition-colors hover:bg-[#D4AF37] hover:text-[#171717] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+                  title="Share this 3D view"
+                >
+                  <Share2 className="h-3.5 w-3.5" /> Share
                 </button>
                 <span
                   aria-hidden
@@ -498,11 +554,51 @@ export default function ProductView() {
             </p>
           )}
 
-          {/* engraving hint */}
+          {/* per-piece engraving (fee set by the atelier, charged per engraved piece at checkout) */}
           {settings?.engravingEnabled !== false && !outOfStock && (
-            <p className="mt-3 flex items-center gap-1.5 text-xs text-[#7a611f]">
-              <PenLine className="h-3.5 w-3.5" /> Personalise it — add hand engraving at checkout
-            </p>
+            <div
+              className={`mt-4 rounded-lg border transition-colors ${
+                engravingOpen || engravingText.trim() ? "border-[#D4AF37] bg-[#D4AF37]/5" : "border-border"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setEngravingOpen((v) => !v)}
+                aria-expanded={engravingOpen}
+                className="flex w-full items-center gap-2 px-4 py-3 text-left"
+              >
+                <PenLine className="h-4 w-4 shrink-0 text-[#A8862A]" />
+                <span className="text-sm font-medium">Add hand engraving</span>
+                <span className="ml-auto text-xs font-medium text-[#7a611f]">
+                  {settings ? `+${formatINR(settings.engravingFee)} / piece` : "Personalise it"}
+                </span>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${engravingOpen ? "rotate-180" : ""}`} />
+              </button>
+              {(engravingOpen || engravingText.trim()) && (
+                <div className="px-4 pb-4">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    A name, date or promise — chased into the metal by our master karigar. Each engraved piece carries the fee.
+                  </p>
+                  <Input
+                    value={engravingText}
+                    onChange={(e) => setEngravingText(e.target.value.slice(0, 60))}
+                    placeholder="e.g. A · R  14.02.2026"
+                    maxLength={60}
+                    aria-label="Engraving text"
+                    className="mt-2 border-[#D4AF37]/40 bg-white tracking-wider"
+                  />
+                  <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Up to 60 characters · charged per piece at checkout</span>
+                    <span className={engravingText.length >= 55 ? "font-medium text-[#7a611f]" : ""} aria-live="polite">{engravingText.length}/60</span>
+                  </div>
+                  {engravingText.trim() && (
+                    <div aria-hidden className="mt-2 rounded-md border border-[#D4AF37]/40 bg-gradient-to-br from-[#FAF7F0] via-[#F7EFD9] to-[#EFE3C4] px-3 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+                      <p className="break-words font-serif text-base italic uppercase tracking-[0.2em] text-[#7a611f]">{engravingText.trim()}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {/* whatsapp inquiry */}
