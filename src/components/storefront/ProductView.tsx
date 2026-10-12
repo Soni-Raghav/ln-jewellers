@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate } from "@/lib/format";
 import type { Product, Paginated } from "@/lib/types";
+import RecentlyViewed, { pushRecent } from "@/components/storefront/RecentlyViewed";
 
 export default function ProductView() {
   const params = useApp((s) => s.params);
@@ -50,6 +51,15 @@ export default function ProductView() {
         setRelated(data.related ?? []);
         const firstAvailable = data.product?.variants?.find((v: { stock: number }) => v.stock > 0) ?? data.product?.variants?.[0];
         setVariantId(firstAvailable?.id ?? null);
+        if (data.product) {
+          pushRecent({
+            slug: data.product.slug,
+            name: data.product.name,
+            image: data.product.images?.[0] ?? "",
+            price: data.product.price,
+            discountPercent: data.product.discountPercent,
+          });
+        }
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -120,6 +130,35 @@ export default function ProductView() {
     );
   }
 
+  const jsonLd = product
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: product.name,
+        sku: product.sku,
+        description: product.shortDescription ?? product.description,
+        image: product.images?.map((i) => i) ?? [],
+        brand: { "@type": "Brand", name: "Aurelia Jewels" },
+        material: product.material,
+        offers: {
+          "@type": "Offer",
+          priceCurrency: "INR",
+          price: netPrice(product.price + (variant?.priceDelta ?? 0), product.discountPercent),
+          availability: outOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+          itemCondition: "https://schema.org/NewCondition",
+        },
+        ...(product.rating !== undefined && product.reviewCount
+          ? {
+              aggregateRating: {
+                "@type": "AggregateRating",
+                ratingValue: product.rating,
+                reviewCount: product.reviewCount,
+              },
+            }
+          : {}),
+      }
+    : null;
+
   if (error || !product) {
     return (
       <div className="mx-auto grid max-w-xl place-items-center px-4 pb-24 pt-40 text-center">
@@ -133,6 +172,12 @@ export default function ProductView() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-20 pt-28 sm:px-6 lg:px-8">
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+        />
+      )}
       {/* breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-xs text-muted-foreground" aria-label="Breadcrumb">
         <button onClick={() => navigate("home")} className="hover:text-foreground">Home</button>
@@ -150,9 +195,10 @@ export default function ProductView() {
           <div className="relative overflow-hidden rounded-xl border border-[#D4AF37]/25 bg-white">
             { }
             <img
+              key={product.images?.[imgIdx] ?? imgIdx}
               src={product.images?.[imgIdx] || "/images/brand/atelier.png"}
               alt={`${product.name} — view ${imgIdx + 1}`}
-              className="aspect-[4/5] w-full object-cover"
+              className="img-enter aspect-[4/5] w-full object-cover"
             />
             {product.discountPercent > 0 && (
               <span className="absolute left-4 top-4 rounded-full bg-[#D4AF37] px-3 py-1 text-xs font-semibold text-black">
@@ -397,6 +443,9 @@ export default function ProductView() {
           </p>
         )}
       </section>
+
+      {/* recently viewed */}
+      <RecentlyViewed excludeSlug={product.slug} />
 
       {/* related */}
       {related.length > 0 && (

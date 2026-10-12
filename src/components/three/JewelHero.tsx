@@ -198,17 +198,19 @@ function JewelScene({ reduced }: { reduced: boolean }) {
   return (
     <>
       {/* warm analytic lighting — no env maps, no HDRIs */}
-      <ambientLight intensity={0.45} color="#FFF6E8" />
+      <ambientLight intensity={0.65} color="#FFF6E8" />
       <spotLight
         position={[5, 7, 4]}
         angle={0.45}
         penumbra={1}
-        intensity={220}
+        intensity={300}
         color="#FFE9C0"
       />
-      <pointLight position={[-5, 2, 3]} intensity={50} color={GOLD_LIGHT} />
-      <pointLight position={[0, 1, 5]} intensity={35} color="#FFF2DC" />
-      <pointLight position={[0, -3, -4]} intensity={28} color={GOLD} />
+      <pointLight position={[-5, 2, 3]} intensity={70} color={GOLD_LIGHT} />
+      <pointLight position={[0, 1, 5]} intensity={55} color="#FFF2DC" />
+      <pointLight position={[0, -3, -4]} intensity={34} color={GOLD} />
+      {/* rim light separates the silhouette from the black backdrop */}
+      <pointLight position={[0, 4, -6]} intensity={90} color="#E6C87A" />
 
       <CameraRig reduced={reduced}>
         {reduced ? (

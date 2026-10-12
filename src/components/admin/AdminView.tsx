@@ -14,6 +14,7 @@ import {
   Settings,
   Star,
   Store,
+  Ticket,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { api, errMsg, setUnauthorizedHandler } from "./api";
 import Overview from "./Overview";
 import ProductsManager from "./ProductsManager";
+import CouponsManager from "./CouponsManager";
 import InventoryManager from "./InventoryManager";
 import OrdersManager from "./OrdersManager";
 import InquiriesManager from "./InquiriesManager";
@@ -40,6 +42,7 @@ type AdminTab =
   | "products"
   | "inventory"
   | "orders"
+  | "coupons"
   | "inquiries"
   | "subscribers"
   | "reviews"
@@ -51,6 +54,7 @@ const SECTIONS: { id: AdminTab; label: string; icon: LucideIcon }[] = [
   { id: "products", label: "Products", icon: Gem },
   { id: "inventory", label: "Inventory", icon: Boxes },
   { id: "orders", label: "Orders", icon: ReceiptText },
+  { id: "coupons", label: "Coupons", icon: Ticket },
   { id: "inquiries", label: "Inquiries", icon: Mail },
   { id: "subscribers", label: "Subscribers", icon: Users },
   { id: "reviews", label: "Reviews", icon: Star },
@@ -249,6 +253,7 @@ export default function AdminView() {
             {tab === "products" && <ProductsManager />}
             {tab === "inventory" && <InventoryManager />}
             {tab === "orders" && <OrdersManager />}
+            {tab === "coupons" && <CouponsManager />}
             {tab === "inquiries" && <InquiriesManager />}
             {tab === "subscribers" && <SubscribersManager />}
             {tab === "reviews" && <ReviewsManager />}

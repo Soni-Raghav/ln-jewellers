@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send } from "lucide-react";
+import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, waOrderMessage } from "@/lib/format";
 import type { CartItem, StoreSettingsDTO } from "@/lib/types";
@@ -17,10 +17,18 @@ import type { CartItem, StoreSettingsDTO } from "@/lib/types";
 interface PlacedOrder {
   orderNumber: string;
   subtotal: number;
+  couponCode: string | null;
+  couponDiscount: number;
   shipping: number;
   tax: number;
   total: number;
   items: { name: string; sku: string; variantName: string | null; quantity: number; lineTotal: number }[];
+}
+
+interface AppliedCoupon {
+  code: string;
+  description: string | null;
+  discountAmount: number;
 }
 
 export default function CheckoutView() {
@@ -36,6 +44,10 @@ export default function CheckoutView() {
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   const [whatsappUrl, setWhatsappUrl] = useState("");
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponMsg, setCouponMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const [checkingCoupon, setCheckingCoupon] = useState(false);
 
   if (placed) {
     return (
@@ -72,6 +84,9 @@ export default function CheckoutView() {
             ))}
             <Separator className="my-2" />
             <p className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{formatINR(placed.subtotal)}</span></p>
+            {placed.couponDiscount > 0 && (
+              <p className="flex justify-between text-[#7a611f]"><span>Coupon {placed.couponCode}</span><span>−{formatINR(placed.couponDiscount)}</span></p>
+            )}
             <p className="flex justify-between text-muted-foreground"><span>Shipping</span><span>{placed.shipping === 0 ? "Free" : formatINR(placed.shipping)}</span></p>
             <p className="flex justify-between text-muted-foreground"><span>GST</span><span>{formatINR(placed.tax)}</span></p>
             <p className="flex justify-between font-medium text-foreground"><span>Total</span><span>{formatINR(placed.total)}</span></p>
@@ -98,8 +113,46 @@ export default function CheckoutView() {
   const subtotal = cart.reduce((n, i) => n + netPrice(i.unitPrice, i.discountPercent) * i.quantity, 0);
   const shipping = settings ? (subtotal >= settings.freeShippingAbove ? 0 : settings.shippingFee) : 0;
   const taxRate = settings?.taxRatePercent ?? 3;
-  const tax = Math.round((subtotal * taxRate) / 100);
-  const total = subtotal + shipping + tax;
+  const couponDiscount = appliedCoupon?.discountAmount ?? 0;
+  const tax = Math.round(((subtotal - couponDiscount) * taxRate) / 100);
+  const total = subtotal - couponDiscount + shipping + tax;
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCheckingCoupon(true);
+    setCouponMsg(null);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, subtotal }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCouponMsg({ tone: "err", text: data.error ?? "Could not check this coupon" });
+        return;
+      }
+      if (!data.valid) {
+        setCouponMsg({ tone: "err", text: data.error ?? "This coupon code isn't valid" });
+        setAppliedCoupon(null);
+        return;
+      }
+      setAppliedCoupon(data.coupon);
+      setCouponMsg({ tone: "ok", text: `${data.coupon.code} applied — you save ${formatINR(data.coupon.discountAmount)}` });
+      toast.success(`${data.coupon.code} applied`);
+    } catch {
+      setCouponMsg({ tone: "err", text: "Network error — please try again" });
+    } finally {
+      setCheckingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponMsg(null);
+  };
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -114,6 +167,7 @@ export default function CheckoutView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          couponCode: appliedCoupon?.code ?? "",
           paymentMethod: method,
           items: cart.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
         }),
@@ -272,13 +326,47 @@ export default function CheckoutView() {
           <Separator className="my-4" />
           <div className="space-y-2.5 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-medium">{formatINR(subtotal)}</span></div>
+            {couponDiscount > 0 && (
+              <div className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1.5"><Ticket className="h-3.5 w-3.5" /> {appliedCoupon?.code}</span><span className="font-medium">−{formatINR(couponDiscount)}</span></div>
+            )}
             <div className="flex justify-between"><span className="text-muted-foreground">Shipping</span><span className="font-medium">{shipping === 0 ? "Free" : formatINR(shipping)}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">GST ({taxRate}%)</span><span className="font-medium">{formatINR(tax)}</span></div>
             <Separator />
             <div className="flex justify-between text-base"><span className="font-serif">Total</span><span className="font-serif text-xl">{formatINR(total)}</span></div>
           </div>
+
+          {/* coupon */}
+          <div className="mt-5 rounded-lg border border-[#D4AF37]/30 bg-[#FAF7F0] p-3.5">
+            <p className="mb-2 text-[11px] uppercase tracking-[0.25em] text-[#A8862A]">Have a coupon?</p>
+            <div className="flex gap-2">
+              <Input
+                value={couponInput}
+                onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                placeholder="AURELIA10"
+                disabled={!!appliedCoupon}
+                className="h-10 border-[#D4AF37]/40 bg-white font-mono text-sm uppercase"
+                aria-label="Coupon code"
+              />
+              {appliedCoupon ? (
+                <Button variant="outline" size="sm" onClick={removeCoupon} className="h-10 shrink-0 border-destructive/40 text-destructive hover:bg-destructive hover:text-white">
+                  Remove
+                </Button>
+              ) : (
+                <Button size="sm" onClick={applyCoupon} disabled={checkingCoupon || !couponInput.trim()} className="h-10 shrink-0 bg-[#0A0A0A] text-[#FAF7F0] hover:bg-[#171717]">
+                  {checkingCoupon ? "…" : "Apply"}
+                </Button>
+              )}
+            </div>
+            {couponMsg && (
+              <p className={`mt-2 text-xs ${couponMsg.tone === "ok" ? "text-emerald-700" : "text-destructive"}`}>{couponMsg.text}</p>
+            )}
+            {!couponMsg && !appliedCoupon && (
+              <p className="mt-2 text-[11px] text-muted-foreground">Launch offers: try <span className="font-mono">AURELIA10</span> on orders above ₹25,000.</p>
+            )}
+          </div>
           {error && <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-          <Button onClick={placeOrder} disabled={placing} className="mt-5 h-13 w-full bg-[#D4AF37] py-3.5 text-base font-medium text-black hover:bg-[#E6C87A]">
+          <Button onClick={placeOrder} disabled={placing} className="btn-shimmer mt-5 h-13 w-full bg-[#D4AF37] py-3.5 text-base font-medium text-black hover:bg-[#E6C87A]">
             {placing ? "Placing your order…" : method === "WHATSAPP" ? (<><Send className="mr-2 h-4 w-4" /> Place order & open WhatsApp</>) : "Place order"}
           </Button>
           <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground">

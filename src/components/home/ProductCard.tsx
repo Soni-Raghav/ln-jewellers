@@ -128,7 +128,7 @@ export function ProductCard({ product, onOpen, className }: ProductCardProps) {
             alt={product.name}
             loading="lazy"
             onError={() => setImageFailed(true)}
-            className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+            className="img-enter h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
           />
         ) : (
           <div className="grid h-full w-full place-items-center bg-gradient-to-br from-[#F1E8D2] via-[#E6C87A]/50 to-[#D4AF37]/40">

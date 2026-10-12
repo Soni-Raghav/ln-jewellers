@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { motion, MotionConfig } from "framer-motion";
 import { useApp } from "@/lib/store";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -154,7 +155,8 @@ export default function AureliaApp() {
   const isAdminArea = view === "admin" || view === "admin-login";
 
   return (
-    <div className={`flex min-h-screen flex-col ${isAdminArea ? "bg-[#0A0A0A]" : "bg-background"}`}>
+    <MotionConfig reducedMotion="user">
+      <div className={`flex min-h-screen flex-col ${isAdminArea ? "bg-[#0A0A0A]" : "bg-background"}`}>
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-[#D4AF37] focus:px-4 focus:py-2 focus:text-sm focus:text-black"
@@ -162,11 +164,19 @@ export default function AureliaApp() {
         Skip to main content
       </a>
       <Navbar />
-      <main id="main-content" className="flex-1" key={`${view}-${params.slug ?? params.collection ?? params.policy ?? ""}`}>
-        <Suspense fallback={<ViewSkeleton />}>{renderView()}</Suspense>
+      <main id="main-content" className="flex-1">
+        <motion.div
+          key={`${view}-${params.slug ?? params.collection ?? params.policy ?? ""}`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <Suspense fallback={<ViewSkeleton />}>{renderView()}</Suspense>
+        </motion.div>
       </main>
       <Footer />
       <WhatsAppFloat />
-    </div>
+      </div>
+    </MotionConfig>
   );
 }

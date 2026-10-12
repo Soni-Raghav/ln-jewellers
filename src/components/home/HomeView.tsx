@@ -462,7 +462,7 @@ export default function HomeView() {
             >
               <Button
                 onClick={() => navigate("shop")}
-                className="h-12 bg-[#D4AF37] px-8 text-sm font-medium text-black hover:bg-[#E6C87A]"
+                className="btn-shimmer h-12 bg-[#D4AF37] px-8 text-sm font-medium text-black hover:bg-[#E6C87A]"
               >
                 Explore the Collection
               </Button>

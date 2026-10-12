@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { handle, ok, badRequest, tooMany, isEmail, isNonEmpty, isPhone, sanitize } from "@/lib/api-utils";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { formatINR } from "@/lib/format";
+import { validateCoupon } from "@/lib/coupons";
 import { Prisma } from "@prisma/client";
 
 interface IncomingItem {
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     const pincode = sanitize(body.pincode).slice(0, 10);
     const notes = sanitize(body.notes).slice(0, 500);
     const paymentMethod = body.paymentMethod === "RAZORPAY" ? "RAZORPAY" : "WHATSAPP";
+    const couponCodeRaw = sanitize(body.couponCode).toUpperCase().slice(0, 30);
 
     const fields: Record<string, string> = {};
     if (!isNonEmpty(customerName, 80)) fields.customerName = "Full name is required";
@@ -120,9 +122,20 @@ export async function POST(req: Request) {
     }
 
     const subtotal = lines.reduce((n, l) => n + l.lineTotal, 0);
+
+    // ---- Coupon: authoritatively re-validated server-side ----
+    let couponDiscount = 0;
+    let appliedCouponCode: string | null = null;
+    if (couponCodeRaw) {
+      const result = await validateCoupon(couponCodeRaw, subtotal);
+      if (!result.valid || !result.coupon) return badRequest(result.error ?? "Coupon is not valid");
+      couponDiscount = result.coupon.discountAmount;
+      appliedCouponCode = result.coupon.code;
+    }
+
     const shipping = subtotal >= freeAbove ? 0 : shippingFee;
-    const tax = Math.round((subtotal * taxRate) / 100);
-    const total = subtotal + shipping + tax;
+    const tax = Math.round(((subtotal - couponDiscount) * taxRate) / 100);
+    const total = subtotal - couponDiscount + shipping + tax;
 
     // ---- Atomic transaction: create order + decrement stock safely ----
     const orderNumber = generateOrderNumber();
@@ -158,6 +171,8 @@ export async function POST(req: Request) {
             pincode,
             notes: notes || null,
             subtotal,
+            couponCode: appliedCouponCode,
+            couponDiscount,
             shipping,
             tax,
             total,
@@ -181,28 +196,39 @@ export async function POST(req: Request) {
           include: { items: true },
         });
 
-        // Inventory movements + sales counters
-        for (const line of lines) {
-          if (line.stockSource.track) {
-            await tx.inventoryMovement.create({
-              data: {
-                productId: line.productId,
-                variantId: line.variantId,
-                delta: -line.quantity,
-                reason: "ORDER",
-                note: `Order ${orderNumber}`,
-                actor: "system:order",
+          // Inventory movements + sales counters + coupon usage
+          if (appliedCouponCode) {
+            const inc = await tx.coupon.updateMany({
+              where: {
+                code: appliedCouponCode,
+                active: true,
+                OR: [{ usageLimit: null }, { usageCount: { lt: db.coupon.fields.usageLimit } }],
               },
+              data: { usageCount: { increment: 1 } },
+            });
+            if (inc.count === 0) throw new Error("COUPON_LIMIT");
+          }
+          for (const line of lines) {
+            if (line.stockSource.track) {
+              await tx.inventoryMovement.create({
+                data: {
+                  productId: line.productId,
+                  variantId: line.variantId,
+                  delta: -line.quantity,
+                  reason: "ORDER",
+                  note: `Order ${orderNumber}`,
+                  actor: "system:order",
+                },
+              });
+            }
+            await tx.product.update({
+              where: { id: line.productId },
+              data: { salesCount: { increment: line.quantity } },
             });
           }
-          await tx.product.update({
-            where: { id: line.productId },
-            data: { salesCount: { increment: line.quantity } },
-          });
-        }
 
-        return created;
-      });
+          return created;
+        });
 
       return ok({
         success: true,
@@ -210,6 +236,8 @@ export async function POST(req: Request) {
           id: order.id,
           orderNumber: order.orderNumber,
           subtotal: order.subtotal,
+          couponCode: order.couponCode,
+          couponDiscount: order.couponDiscount,
           shipping: order.shipping,
           tax: order.tax,
           total: order.total,
@@ -234,6 +262,9 @@ export async function POST(req: Request) {
     } catch (err) {
       if (err instanceof Error && err.message.startsWith("JUST_OUT:")) {
         return badRequest(`${err.message.replace("JUST_OUT:", "")} was just taken — someone got there first. Please refresh your cart.`);
+      }
+      if (err instanceof Error && err.message === "COUPON_LIMIT") {
+        return badRequest("This coupon just reached its usage limit — please remove it and try again.");
       }
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         return badRequest("Could not place order. Please review your cart and try again.");

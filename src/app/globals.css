@@ -203,8 +203,69 @@
   .animate-marquee {
     animation: marquee-x 32s linear infinite;
   }
+
+  /* Gold shimmer sweep for primary CTAs */
+  @keyframes shimmer-sweep {
+    from {
+      transform: translateX(-120%) skewX(-18deg);
+    }
+    to {
+      transform: translateX(240%) skewX(-18deg);
+    }
+  }
+  .btn-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .btn-shimmer::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 34%;
+    background: linear-gradient(100deg, transparent 0%, rgba(255, 255, 255, 0.55) 50%, transparent 100%);
+    opacity: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .btn-shimmer:hover::after {
+    opacity: 1;
+    animation: shimmer-sweep 0.9s ease;
+  }
+
+  /* Gentle fade-up entrance for images as they mount */
+  @keyframes img-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(1.015);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  .img-enter {
+    animation: img-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Refined gold focus ring for keyboard users */
+  :focus-visible {
+    outline: 2px solid #d4af37;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-marquee {
+      animation: none;
+    }
+    .btn-shimmer:hover::after {
+      animation: none;
+      opacity: 0;
+    }
+    .img-enter {
       animation: none;
     }
     html {
