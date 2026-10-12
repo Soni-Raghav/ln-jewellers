@@ -408,7 +408,13 @@ export default function OrdersManager() {
                 <div className="space-y-1">
                   <TotalRow label="Subtotal" value={formatINR(detail.subtotal)} />
                   {detail.discount > 0 && <TotalRow label="Discount" value={`− ${formatINR(detail.discount)}`} />}
+                  {!!detail.couponDiscount && detail.couponDiscount > 0 && detail.couponCode && (
+                    <TotalRow label={`Coupon ${detail.couponCode}`} value={`− ${formatINR(detail.couponDiscount)}`} gold />
+                  )}
                   <TotalRow label="Shipping" value={detail.shipping === 0 ? "Free" : formatINR(detail.shipping)} />
+                  {!!detail.giftWrap && !!detail.giftWrapFee && detail.giftWrapFee > 0 && (
+                    <TotalRow label="Signature gift wrap" value={formatINR(detail.giftWrapFee)} gold />
+                  )}
                   <TotalRow label="Tax" value={formatINR(detail.tax)} />
                 </div>
                 <Separator className="my-2 bg-[#EAE2D3]" />
@@ -448,9 +454,9 @@ export default function OrdersManager() {
 }
 
 // ---------- Small helpers ----------
-function TotalRow({ label, value }: { label: string; value: string }) {
+function TotalRow({ label, value, gold }: { label: string; value: string; gold?: boolean }) {
   return (
-    <div className="flex items-center justify-between text-[#5A544A]">
+    <div className={`flex items-center justify-between ${gold ? "text-[#7A5E14]" : "text-[#5A544A]"}`}>
       <span>{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>

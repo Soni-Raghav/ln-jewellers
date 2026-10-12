@@ -45,6 +45,27 @@ export async function GET() {
     const revenue = paidOrders.reduce((n, o) => n + o.total, 0);
     const pendingOrders = orders.filter((o) => ["PLACED", "CONFIRMED", "IN_PRODUCTION"].includes(o.status)).length;
 
+    // ---- 14-day sales series (orders count + revenue per day) ----
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const series: { date: string; label: string; orders: number; revenue: number }[] = [];
+    const buckets = new Map<string, { orders: number; revenue: number }>();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * DAY_MS);
+      const key = d.toISOString().slice(0, 10);
+      series.push({ date: key, label: d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }), orders: 0, revenue: 0 });
+      buckets.set(key, series[series.length - 1]);
+    }
+    for (const o of orders) {
+      const key = new Date(o.createdAt).toISOString().slice(0, 10);
+      const bucket = buckets.get(key);
+      if (bucket) {
+        bucket.orders += 1;
+        bucket.revenue += o.total;
+      }
+    }
+
     return ok({
       totalProducts,
       publishedProducts,
@@ -61,6 +82,7 @@ export async function GET() {
       couponRedemptions: couponAgg._sum.usageCount ?? 0,
       couponSavings: couponSavingsAgg._sum.couponDiscount ?? 0,
       pendingQuestions,
+      salesSeries: series,
       recentOrders: orders.slice(0, 8).map((o) => ({
         id: o.id,
         orderNumber: o.orderNumber,

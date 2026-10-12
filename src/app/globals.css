@@ -273,3 +273,45 @@
     }
   }
 }
+
+/* ---------- Print (printable invoice from Track Order) ---------- */
+@media print {
+  /* everything hidden by default… */
+  body * {
+    visibility: hidden;
+  }
+  /* …except the invoice elements themselves */
+  .print-invoice,
+  .print-invoice ~ section[aria-label="Order details"] {
+    visibility: visible;
+  }
+  .print-invoice {
+    display: block !important;
+  }
+  /* neutralise the page chrome around the invoice */
+  .print-invoice ~ section[aria-label="Order details"] {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+  }
+  .print-invoice ~ section[aria-label="Order details"] ol,
+  .print-invoice ~ section[aria-label="Order details"] img {
+    display: none !important;
+  }
+  nav,
+  header,
+  footer,
+  aside,
+  button {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+}

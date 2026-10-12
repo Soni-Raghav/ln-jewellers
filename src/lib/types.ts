@@ -130,6 +130,10 @@ export interface OrderDTO {
   status: string;
   paymentMethod: string;
   paymentStatus: string;
+  couponCode?: string | null;
+  couponDiscount?: number;
+  giftWrap?: boolean;
+  giftWrapFee?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -149,6 +153,7 @@ export interface StoreSettingsDTO {
   shippingFee: number;
   freeShippingAbove: number;
   taxRatePercent: number;
+  giftWrapFee: number;
   aboutStory: string;
   missionVision: string;
   shippingPolicy: string;
@@ -178,6 +183,7 @@ export interface DashboardStats {
   couponRedemptions: number;
   couponSavings: number;
   pendingQuestions: number;
+  salesSeries: { date: string; label: string; orders: number; revenue: number }[];
   recentOrders: OrderDTO[];
   recentInquiries: { id: string; name: string; email: string; subject: string; status: string; createdAt: string }[];
   topProducts: { id: string; name: string; sold: number }[];

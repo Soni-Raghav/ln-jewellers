@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS: StoreSettingsDTO = {
   shippingFee: 199,
   freeShippingAbove: 50000,
   taxRatePercent: 3,
+  giftWrapFee: 500,
   aboutStory: "",
   missionVision: "",
   shippingPolicy: "",
@@ -101,6 +102,7 @@ export default function SettingsManager() {
         shippingFee: Math.max(0, Number(form.shippingFee) || 0),
         freeShippingAbove: Math.max(0, Number(form.freeShippingAbove) || 0),
         taxRatePercent: Math.min(28, Math.max(0, Number(form.taxRatePercent) || 0)),
+        giftWrapFee: Math.max(0, Number(form.giftWrapFee) || 0),
         faq: faqRows.filter((r) => r.q.trim() || r.a.trim()),
         testimonials: testimonialRows
           .filter((r) => r.name.trim() || r.text.trim())
@@ -307,6 +309,17 @@ export default function SettingsManager() {
                 onChange={(e) => set("taxRatePercent", Number(e.target.value))}
                 className="border-[#E0D9C8] bg-white"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#5A544A]">Gift wrap fee (₹)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={form.giftWrapFee}
+                onChange={(e) => set("giftWrapFee", Number(e.target.value))}
+                className="border-[#E0D9C8] bg-white"
+              />
+              <p className="text-xs text-[#8A8375]">Charged once per order when the shopper adds signature gift wrap.</p>
             </div>
             <div className="flex items-center gap-3 sm:col-span-3">
               <Switch checked={form.razorpayEnabled} onCheckedChange={(v) => set("razorpayEnabled", v)} aria-label="Enable Razorpay" />

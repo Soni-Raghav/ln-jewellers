@@ -6,16 +6,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home } from "lucide-react";
+import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home, Printer, Gift } from "lucide-react";
 import { formatINR, formatDate } from "@/lib/format";
 
 interface TrackedOrder {
   orderNumber: string;
   customerName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  notes?: string | null;
   status: string;
   paymentMethod: string;
   paymentStatus: string;
   subtotal: number;
+  couponCode?: string | null;
+  couponDiscount?: number;
+  giftWrap?: boolean;
+  giftWrapFee?: number;
   shipping: number;
   tax: number;
   total: number;
@@ -68,6 +79,36 @@ export default function TrackOrderView() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-28 sm:px-6">
+      {/* Print-only invoice letterhead (visible only when printing) */}
+      {order && (
+        <div className="print-invoice hidden">
+          <div className="flex items-start justify-between border-b-2 border-[#D4AF37] pb-4">
+            <div>
+              <p className="font-serif text-2xl font-semibold">Aurelia Jewels</p>
+              <p className="text-xs text-[#5A544A]">Handcrafted 22K &amp; 18K gold jewelry · Jaipur, India</p>
+              <p className="text-xs text-[#5A544A]">hello@aureliajewels.com · +91 98765 43210</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-[#A8862A]">Tax invoice</p>
+              <p className="font-mono text-sm">{order.orderNumber}</p>
+              <p className="text-xs text-[#5A544A]">{formatDate(order.createdAt)}</p>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <p className="mb-1 text-[10px] uppercase tracking-[0.25em] text-[#8A8375]">Billed to</p>
+              <p className="font-medium text-[#1C1A16]">{order.customerName}</p>
+              <p className="text-[#5A544A]">{order.address}</p>
+              <p className="text-[#5A544A]">{order.city}, {order.state} – {order.pincode}</p>
+              <p className="text-[#5A544A]">{order.phone}</p>
+            </div>
+            <div className="text-right">
+              <p className="mb-1 text-[10px] uppercase tracking-[0.25em] text-[#8A8375]">Payment</p>
+              <p className="text-[#5A544A]">{order.paymentMethod === "WHATSAPP" ? "WhatsApp concierge" : "Online (Razorpay)"} · {order.paymentStatus}</p>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="mb-10 text-center">
         <p className="text-[11px] uppercase tracking-[0.35em] text-[#A8862A]">Where is my jewelry?</p>
         <h1 className="mt-2 font-serif text-4xl">Track Your Order</h1>
@@ -155,11 +196,33 @@ export default function TrackOrderView() {
           </div>
           <div className="mt-5 space-y-1.5 border-t border-border pt-4 text-sm">
             <p className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{formatINR(order.subtotal)}</span></p>
+            {!!order.couponDiscount && order.couponDiscount > 0 && order.couponCode && (
+              <p className="flex justify-between text-[#7a611f]"><span>Coupon {order.couponCode}</span><span>−{formatINR(order.couponDiscount)}</span></p>
+            )}
             <p className="flex justify-between text-muted-foreground"><span>Shipping</span><span>{order.shipping === 0 ? "Free" : formatINR(order.shipping)}</span></p>
+            {!!order.giftWrap && !!order.giftWrapFee && order.giftWrapFee > 0 && (
+              <p className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1"><Gift className="h-3.5 w-3.5" /> Signature gift wrap</span><span>{formatINR(order.giftWrapFee)}</span></p>
+            )}
             <p className="flex justify-between text-muted-foreground"><span>GST</span><span>{formatINR(order.tax)}</span></p>
             <p className="flex justify-between text-base font-medium"><span>Total</span><span className="font-serif text-lg">{formatINR(order.total)}</span></p>
           </div>
-          <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="mt-5 flex flex-wrap gap-3 print:hidden">
+            <Button
+              variant="outline"
+              onClick={() => window.print()}
+              className="border-[#D4AF37]/50 text-[#7a611f] hover:bg-[#D4AF37]/10 hover:text-[#7a611f]"
+            >
+              <Printer className="mr-2 h-4 w-4" /> Print invoice
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("shop")}
+              className="border-border text-foreground hover:bg-[#D4AF37]/10"
+            >
+              Continue shopping
+            </Button>
+          </div>
+          <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground print:hidden">
             <Clock className="h-3.5 w-3.5" /> Questions about this order? Message us on WhatsApp — concierge replies within business hours.
           </p>
         </section>

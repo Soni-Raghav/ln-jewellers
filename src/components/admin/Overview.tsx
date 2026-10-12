@@ -164,6 +164,9 @@ export default function Overview() {
         </div>
       </section>
 
+      {/* ---------- 14-day sales chart ---------- */}
+      <SalesChart series={data.salesSeries} />
+
       {/* ---------- Stock alerts ---------- */}
       <section aria-label="Stock alerts" className="grid gap-6 lg:grid-cols-2">
         <Card className="border-[#EAE2D3] bg-white">
@@ -344,6 +347,93 @@ export default function Overview() {
         </div>
       </section>
     </div>
+  );
+}
+
+// ---------- 14-day sales chart (pure SVG, gold bars) ----------
+function SalesChart({ series }: { series: DashboardData["salesSeries"] }) {
+  const W = 720;
+  const H = 190;
+  const PAD = { top: 16, right: 8, bottom: 26, left: 8 };
+  const innerW = W - PAD.left - PAD.right;
+  const innerH = H - PAD.top - PAD.bottom;
+  const maxRevenue = Math.max(...series.map((d) => d.revenue), 1);
+  const totalOrders = series.reduce((n, d) => n + d.orders, 0);
+  const totalRevenue = series.reduce((n, d) => n + d.revenue, 0);
+  const barGap = 6;
+  const barW = Math.max(6, (innerW - barGap * (series.length - 1)) / series.length);
+
+  return (
+    <Card className="border-[#EAE2D3] bg-white">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex flex-wrap items-center gap-2 font-serif text-lg text-[#1C1A16]">
+          <TrendingUp className="size-4 text-[#D4AF37]" aria-hidden />
+          Last 14 days
+          <span className="ml-auto flex flex-wrap gap-4 text-xs font-normal text-[#8A8375]">
+            <span>
+              <span className="font-serif text-base tabular-nums text-[#1C1A16]">{totalOrders}</span> orders
+            </span>
+            <span>
+              <span className="font-serif text-base tabular-nums text-[#1C1A16]">{formatINR(totalRevenue)}</span> value
+            </span>
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="h-44 w-full"
+          role="img"
+          aria-label={`Bar chart of orders and revenue over the last 14 days: ${totalOrders} orders worth ${formatINR(totalRevenue)}`}
+        >
+          <defs>
+            <linearGradient id="sales-bar" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#E6C87A" />
+              <stop offset="100%" stopColor="#D4AF37" />
+            </linearGradient>
+          </defs>
+          {/* baseline */}
+          <line x1={PAD.left} y1={H - PAD.bottom} x2={W - PAD.right} y2={H - PAD.bottom} stroke="#EAE2D3" strokeWidth="1" />
+          {series.map((d, i) => {
+            const h = Math.max(d.revenue > 0 ? 4 : 0, (d.revenue / maxRevenue) * innerH);
+            const x = PAD.left + i * (barW + barGap);
+            const y = H - PAD.bottom - h;
+            return (
+              <g key={d.date}>
+                <title>{`${d.label}: ${d.orders} order${d.orders === 1 ? "" : "s"} · ${formatINR(d.revenue)}`}</title>
+                <rect
+                  x={x}
+                  y={y}
+                  width={barW}
+                  height={h}
+                  rx="3"
+                  fill="url(#sales-bar)"
+                  opacity={d.revenue > 0 ? 0.92 : 0.25}
+                  className="transition-opacity hover:opacity-100"
+                />
+                {d.orders > 0 && (
+                  <circle cx={x + barW / 2} cy={y - 7} r="2.4" fill="#0A0A0A" opacity="0.75" />
+                )}
+                {(i % 2 === 0 || i === series.length - 1) && (
+                  <text
+                    x={x + barW / 2}
+                    y={H - PAD.bottom + 16}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill="#8A8375"
+                  >
+                    {d.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+        <p className="mt-2 text-[11px] text-[#B0A88F]">
+          Bars show order value per day · dots mark order days · hover a bar for details.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 

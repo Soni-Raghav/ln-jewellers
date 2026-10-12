@@ -29,12 +29,11 @@ import {
 } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, Float, Sparkles } from "@react-three/drei";
-import { MathUtils, type Group, type Mesh, type MeshStandardMaterial } from "three";
+import { MathUtils, type Group, type Mesh, type MeshPhysicalMaterial } from "three";
 import { cn } from "@/lib/utils";
 
 const GOLD = "#D4AF37";
 const GOLD_LIGHT = "#E6C87A";
-const GEM = "#F3E5D8";
 const IVORY = "#FAF7F0";
 
 /* ------------------------------------------------------------------ */
@@ -115,8 +114,8 @@ function GoldRing({ reduced }: { reduced: boolean }) {
     if (gem.current) {
       // slow gem spin + subtle sparkle pulse
       gem.current.rotation.y = state.clock.elapsedTime * 0.55;
-      const mat = gem.current.material as MeshStandardMaterial;
-      mat.emissiveIntensity = 0.3 + Math.sin(state.clock.elapsedTime * 1.6) * 0.18;
+      const mat = gem.current.material as MeshPhysicalMaterial;
+      mat.emissiveIntensity = 0.12 + Math.sin(state.clock.elapsedTime * 1.6) * 0.07;
     }
   });
 
@@ -138,15 +137,18 @@ function GoldRing({ reduced }: { reduced: boolean }) {
             <meshStandardMaterial color={GOLD} metalness={1} roughness={0.22} />
           </mesh>
 
-          {/* faceted gem */}
-          <mesh ref={gem} position={[0, 0.3, 0]}>
-            <octahedronGeometry args={[0.32, 0]} />
-            <meshStandardMaterial
-              color={GEM}
-              metalness={0.6}
-              roughness={0.05}
-              emissive={GEM}
-              emissiveIntensity={0.3}
+          {/* faceted gem — champagne diamond, 20-facet brilliant cut */}
+          <mesh ref={gem} position={[0, 0.34, 0]} scale={[1, 1.18, 1]}>
+            <icosahedronGeometry args={[0.3, 0]} />
+            <meshPhysicalMaterial
+              color="#CBB384"
+              metalness={0.35}
+              roughness={0.22}
+              clearcoat={0.45}
+              clearcoatRoughness={0.3}
+              reflectivity={0.35}
+              emissive={"#8F6E2A"}
+              emissiveIntensity={0.1}
               flatShading
             />
           </mesh>
@@ -157,7 +159,7 @@ function GoldRing({ reduced }: { reduced: boolean }) {
             return (
               <mesh
                 key={i}
-                position={[Math.cos(a) * 0.22, 0.3, Math.sin(a) * 0.22]}
+                position={[Math.cos(a) * 0.22, 0.34, Math.sin(a) * 0.22]}
               >
                 <sphereGeometry args={[0.048, 16, 16]} />
                 <meshStandardMaterial color={GOLD} metalness={1} roughness={0.2} />
@@ -203,7 +205,7 @@ function JewelScene({ reduced }: { reduced: boolean }) {
         position={[5, 7, 4]}
         angle={0.45}
         penumbra={1}
-        intensity={300}
+        intensity={190}
         color="#FFE9C0"
       />
       <pointLight position={[-5, 2, 3]} intensity={70} color={GOLD_LIGHT} />

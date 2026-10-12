@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Heart, Share2, Minus, Plus, ShoppingBag, MessageCircle, Truck, RefreshCcw,
-  ShieldCheck, Star, Sparkles, Hammer, ChevronLeft,
+  ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ZoomIn,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate } from "@/lib/format";
@@ -33,8 +33,18 @@ export default function ProductView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [imgIdx, setImgIdx] = useState(0);
+  const [zooming, setZooming] = useState(false);
+  const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
   const [variantId, setVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
+
+  // Magnifier: move the transform-origin with the cursor for a true loupe feel
+  const onGalleryMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setZoomOrigin(`${x}% ${y}%`);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -193,13 +203,22 @@ export default function ProductView() {
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-14">
         {/* gallery */}
         <div className="relative">
-          <div className="relative overflow-hidden rounded-xl border border-[#D4AF37]/25 bg-white">
+          <div
+            className="group relative overflow-hidden rounded-xl border border-[#D4AF37]/25 bg-white"
+            onMouseMove={onGalleryMouseMove}
+            onMouseEnter={() => setZooming(true)}
+            onMouseLeave={() => setZooming(false)}
+          >
             { }
             <img
               key={product.images?.[imgIdx] ?? imgIdx}
               src={product.images?.[imgIdx] || "/images/brand/atelier.png"}
               alt={`${product.name} — view ${imgIdx + 1}`}
-              className="img-enter aspect-[4/5] w-full object-cover"
+              className="img-enter aspect-[4/5] w-full object-cover transition-transform duration-300 ease-out will-change-transform"
+              style={{
+                transformOrigin: zoomOrigin,
+                transform: zooming ? "scale(1.85)" : "scale(1)",
+              }}
             />
             {product.discountPercent > 0 && (
               <span className="absolute left-4 top-4 rounded-full bg-[#D4AF37] px-3 py-1 text-xs font-semibold text-black">
@@ -211,6 +230,14 @@ export default function ProductView() {
                 <Hammer className="h-3 w-3" /> Handmade
               </span>
             )}
+            <span
+              aria-hidden
+              className={`pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[10px] uppercase tracking-widest text-[#7a611f] shadow-sm backdrop-blur transition-opacity duration-200 ${
+                zooming ? "opacity-0" : "opacity-100"
+              }`}
+            >
+              <ZoomIn className="h-3 w-3" /> Hover to zoom
+            </span>
           </div>
           {product.images && product.images.length > 1 && (
             <div className="mt-3 flex gap-3">
@@ -328,7 +355,7 @@ export default function ProductView() {
             <Button
               onClick={() => handleAdd(false)}
               disabled={outOfStock}
-              className="h-11 flex-1 bg-[#0A0A0A] text-[#FAF7F0] hover:bg-[#171717] sm:flex-none sm:px-8"
+              className="h-11 flex-1 bg-[#0A0A0A] text-[#FAF7F0] transition-transform hover:bg-[#171717] active:scale-[0.97] sm:flex-none sm:px-8"
             >
               <ShoppingBag className="mr-2 h-4 w-4" /> {outOfStock ? "Out of stock" : "Add to bag"}
             </Button>

@@ -159,6 +159,8 @@ model Order {
   paymentStatus String      @default("UNPAID") // UNPAID | PAID | REFUNDED
   couponCode    String?
   couponDiscount Float     @default(0)
+  giftWrap      Boolean     @default(false)
+  giftWrapFee   Float       @default(0)
   payments      Payment[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -280,6 +282,7 @@ model StoreSettings {
   shippingFee      Float    @default(199)
   freeShippingAbove Float   @default(50000)
   taxRatePercent   Float    @default(3)
+  giftWrapFee      Float    @default(500)
   aboutStory       String   @default("")
   missionVision    String   @default("")
   shippingPolicy   String   @default("")

@@ -5,14 +5,42 @@ import { useApp } from "@/lib/store";
 import ProductCard from "@/components/home/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Heart } from "lucide-react";
+import { Heart, MessageCircle, Share2 } from "lucide-react";
+import { toast } from "sonner";
+import { formatINR, netPrice, waLink } from "@/lib/format";
 import type { Product } from "@/lib/types";
 
 export default function WishlistView() {
   const wishlist = useApp((s) => s.wishlist);
   const navigate = useApp((s) => s.navigate);
+  const settings = useApp((s) => s.settings);
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const shareOnWhatsApp = () => {
+    if (items.length === 0 || !settings) return;
+    const lines = [
+      `Hello Aurelia Jewels! ◆`,
+      ``,
+      `Here's my wishlist — could you share availability and current making times?`,
+      ``,
+      ...items.slice(0, 12).map((p, i) => `${i + 1}. *${p.name}* — ${formatINR(netPrice(p.price, p.discountPercent))}`),
+      ``,
+      `Sent from my wishlist on your website.`,
+    ];
+    window.open(waLink(settings.whatsappNumber, lines.join("\n")), "_blank", "noopener");
+  };
+
+  const copyList = async () => {
+    if (items.length === 0) return;
+    const text = items.map((p) => `• ${p.name} — ${formatINR(netPrice(p.price, p.discountPercent))}`).join("\n");
+    try {
+      await navigator.clipboard.writeText(`My Aurelia Jewels wishlist:\n${text}`);
+      toast.success("Wishlist copied to clipboard");
+    } catch {
+      toast.error("Could not copy — please try again");
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +72,23 @@ export default function WishlistView() {
         <p className="text-[11px] uppercase tracking-[0.35em] text-[#A8862A]">Saved for later</p>
         <h1 className="mt-2 font-serif text-4xl">Your Wishlist</h1>
         <p className="mt-2 text-sm text-muted-foreground">{wishlist.length} {wishlist.length === 1 ? "piece" : "pieces"} kept safe</p>
+        {items.length > 0 && (
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <Button
+              onClick={shareOnWhatsApp}
+              className="h-11 bg-[#25D366] px-5 text-white hover:bg-[#1fb857]"
+            >
+              <MessageCircle className="mr-2 h-4 w-4" /> Ask concierge on WhatsApp
+            </Button>
+            <Button
+              variant="outline"
+              onClick={copyList}
+              className="h-11 border-[#D4AF37]/50 text-[#7a611f] hover:bg-[#D4AF37]/10 hover:text-[#7a611f]"
+            >
+              <Share2 className="mr-2 h-4 w-4" /> Copy list
+            </Button>
+          </div>
+        )}
       </header>
 
       {loading ? (

@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, waOrderMessage } from "@/lib/format";
 import type { CartItem, StoreSettingsDTO } from "@/lib/types";
@@ -20,6 +21,8 @@ interface PlacedOrder {
   couponCode: string | null;
   couponDiscount: number;
   shipping: number;
+  giftWrap: boolean;
+  giftWrapFee: number;
   tax: number;
   total: number;
   items: { name: string; sku: string; variantName: string | null; quantity: number; lineTotal: number }[];
@@ -48,6 +51,7 @@ export default function CheckoutView() {
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [couponMsg, setCouponMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [checkingCoupon, setCheckingCoupon] = useState(false);
+  const [giftWrap, setGiftWrap] = useState(false);
 
   if (placed) {
     return (
@@ -88,6 +92,9 @@ export default function CheckoutView() {
               <p className="flex justify-between text-[#7a611f]"><span>Coupon {placed.couponCode}</span><span>−{formatINR(placed.couponDiscount)}</span></p>
             )}
             <p className="flex justify-between text-muted-foreground"><span>Shipping</span><span>{placed.shipping === 0 ? "Free" : formatINR(placed.shipping)}</span></p>
+            {placed.giftWrapFee > 0 && (
+              <p className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1"><Gift className="h-3.5 w-3.5" /> Signature gift wrap</span><span>{formatINR(placed.giftWrapFee)}</span></p>
+            )}
             <p className="flex justify-between text-muted-foreground"><span>GST</span><span>{formatINR(placed.tax)}</span></p>
             <p className="flex justify-between font-medium text-foreground"><span>Total</span><span>{formatINR(placed.total)}</span></p>
           </div>
@@ -113,9 +120,10 @@ export default function CheckoutView() {
   const subtotal = cart.reduce((n, i) => n + netPrice(i.unitPrice, i.discountPercent) * i.quantity, 0);
   const shipping = settings ? (subtotal >= settings.freeShippingAbove ? 0 : settings.shippingFee) : 0;
   const taxRate = settings?.taxRatePercent ?? 3;
+  const giftWrapFee = giftWrap ? (settings?.giftWrapFee ?? 0) : 0;
   const couponDiscount = appliedCoupon?.discountAmount ?? 0;
   const tax = Math.round(((subtotal - couponDiscount) * taxRate) / 100);
-  const total = subtotal - couponDiscount + shipping + tax;
+  const total = subtotal - couponDiscount + shipping + tax + giftWrapFee;
 
   const applyCoupon = async () => {
     const code = couponInput.trim().toUpperCase();
@@ -168,6 +176,7 @@ export default function CheckoutView() {
         body: JSON.stringify({
           ...form,
           couponCode: appliedCoupon?.code ?? "",
+          giftWrap,
           paymentMethod: method,
           items: cart.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
         }),
@@ -187,7 +196,7 @@ export default function CheckoutView() {
               settings as StoreSettingsDTO,
               order.orderNumber,
               cart,
-              { subtotal: order.subtotal, shipping: order.shipping, tax: order.tax, total: order.total, couponCode: order.couponCode, discount: order.couponDiscount },
+              { subtotal: order.subtotal, shipping: order.shipping, tax: order.tax, total: order.total, couponCode: order.couponCode, discount: order.couponDiscount, giftWrap: order.giftWrap, giftWrapFee: order.giftWrapFee },
               { name: form.customerName, phone: form.phone, address: form.address, city: form.city, state: form.state, pincode: form.pincode }
             )
           : "";
@@ -266,6 +275,32 @@ export default function CheckoutView() {
             </div>
           </section>
 
+          {/* gift wrap */}
+          <section className="rounded-xl border border-[#D4AF37]/25 bg-white p-6" aria-labelledby="gift-heading">
+            <h2 id="gift-heading" className="font-serif text-xl">Finishing touches</h2>
+            <label
+              className={`mt-4 flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+                giftWrap ? "border-[#D4AF37] bg-[#D4AF37]/5" : "border-border hover:border-[#D4AF37]/50"
+              }`}
+            >
+              <Checkbox
+                checked={giftWrap}
+                onCheckedChange={(v) => setGiftWrap(v === true)}
+                className="mt-0.5 border-[#D4AF37]/60 data-[state=checked]:border-[#D4AF37] data-[state=checked]:bg-[#D4AF37] data-[state=checked]:text-black"
+                aria-label="Add signature gift wrap"
+              />
+              <div className="flex-1">
+                <p className="flex flex-wrap items-center gap-2 font-medium">
+                  <Gift className="h-4 w-4 text-[#A8862A]" /> Signature gift wrap
+                  <span className="ml-auto text-sm font-medium text-[#7a611f]">+{formatINR(settings?.giftWrapFee ?? 0)}</span>
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your piece arrives in our ivory linen box with a hand-tied gold ribbon, wax seal and a personalised note card — ready to gift, no price tags inside.
+                </p>
+              </div>
+            </label>
+          </section>
+
           <section className="rounded-xl border border-[#D4AF37]/25 bg-white p-6" aria-labelledby="payment-heading">
             <h2 id="payment-heading" className="font-serif text-xl">How would you like to order?</h2>
             <RadioGroup value={method} onValueChange={(v) => setMethod(v as "WHATSAPP" | "RAZORPAY")} className="mt-5 gap-4">
@@ -331,6 +366,9 @@ export default function CheckoutView() {
               <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2 text-[#7a611f]"><span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest"><Ticket className="h-3.5 w-3.5" /> {appliedCoupon?.code}</span><span className="font-medium">−{formatINR(couponDiscount)}</span></div>
             )}
             <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2"><span className="text-xs uppercase tracking-widest text-muted-foreground">Shipping</span><span className="font-medium">{shipping === 0 ? "Free" : formatINR(shipping)}</span></div>
+            {giftWrapFee > 0 && (
+              <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2 text-[#7a611f]"><span className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest"><Gift className="h-3.5 w-3.5" /> Gift wrap</span><span className="font-medium">{formatINR(giftWrapFee)}</span></div>
+            )}
             <div className="flex items-baseline justify-between border-b border-[#D4AF37]/10 py-2"><span className="text-xs uppercase tracking-widest text-muted-foreground">GST ({taxRate}%)</span><span className="font-medium">{formatINR(tax)}</span></div>
             <div className="flex items-baseline justify-between pt-3"><span className="font-serif">Total</span><span className="font-serif text-xl text-[#0A0A0A]">{formatINR(total)}</span></div>
           </div>

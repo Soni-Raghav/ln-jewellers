@@ -62,6 +62,8 @@ type WaTotals = {
   total: number;
   couponCode?: string | null;
   discount?: number;
+  giftWrap?: boolean;
+  giftWrapFee?: number;
 };
 
 function waTotalsLines(totals: WaTotals): string[] {
@@ -72,7 +74,12 @@ function waTotalsLines(totals: WaTotals): string[] {
     lines.push(`Coupon (${totals.couponCode}): −${formatINR(totals.discount)}`);
   }
   lines.push(
-    `Shipping: ${totals.shipping === 0 ? "Free" : formatINR(totals.shipping)}`,
+    `Shipping: ${totals.shipping === 0 ? "Free" : formatINR(totals.shipping)}`
+  );
+  if (totals.giftWrap && totals.giftWrapFee && totals.giftWrapFee > 0) {
+    lines.push(`Signature gift wrap: ${formatINR(totals.giftWrapFee)}`);
+  }
+  lines.push(
     `GST (${3}%): ${formatINR(totals.tax)}`,
     `*Total: ${formatINR(totals.total)}*`
   );
@@ -127,7 +134,7 @@ export function waOrderMessage(
     `${customer.name}, ${customer.phone}`,
     `${customer.address}, ${customer.city}, ${customer.state} – ${customer.pincode}`,
     ``,
-    `Please confirm my order. Thank you!`
+    `Please confirm my order. Thank you!${totals.giftWrap ? " Please include the signature gift wrap." : ""}`
   );
   return waLink(settings.whatsappNumber, lines.join("\n"));
 }
