@@ -136,6 +136,9 @@ export interface OrderDTO {
   giftWrapFee?: number;
   engravingText?: string | null;
   engravingFee?: number;
+  cancelRequested?: boolean;
+  cancelReason?: string | null;
+  cancelRequestedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

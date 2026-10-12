@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download } from "lucide-react";
+import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download, XCircle, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -125,6 +125,23 @@ export default function OrdersManager() {
     );
   }
 
+  async function declineCancelRequest(order: OrderDTO) {
+    setBusyId(order.id);
+    try {
+      await api(`/api/admin/orders/${order.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ cancelRequested: false }),
+      });
+      toast.success(`Cancellation request for ${order.orderNumber} declined — customer keeps the order.`);
+      patchLocal(order.id, { cancelRequested: false, cancelReason: null, cancelRequestedAt: null });
+    } catch (e) {
+      if (!isAuthError(e)) toast.error(errMsg(e));
+      await load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const totalPages = data?.totalPages ?? 1;
 
   return (
@@ -222,7 +239,19 @@ export default function OrdersManager() {
                   {data.items.map((o) => (
                     <TableRow key={o.id} className="border-[#F0EAD9]">
                       <TableCell className="pl-4">
-                        <p className="font-mono text-xs font-medium text-[#7A5E14]">{o.orderNumber}</p>
+                        <p className="flex items-center gap-1.5 font-mono text-xs font-medium text-[#7A5E14]">
+                          {o.orderNumber}
+                          {o.cancelRequested && o.status !== "CANCELLED" && (
+                            <span
+                              className="relative flex h-2 w-2 shrink-0"
+                              title="Customer requested cancellation"
+                              aria-label="Customer requested cancellation"
+                            >
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-70" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-600" />
+                            </span>
+                          )}
+                        </p>
                         <p className="text-[11px] text-[#B0A88F]">{formatDate(o.createdAt)}</p>
                       </TableCell>
                       <TableCell>
@@ -354,6 +383,46 @@ export default function OrdersManager() {
 
           {detail && (
             <div className="space-y-5">
+              {/* Customer cancellation request */}
+              {detail.cancelRequested && detail.status !== "CANCELLED" && (
+                <section className="rounded-md border border-amber-300 bg-amber-50 p-3">
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-amber-800">
+                    <XCircle className="size-4" aria-hidden />
+                    Customer requested cancellation
+                    {detail.cancelRequestedAt && (
+                      <span className="text-xs font-normal text-amber-700/80">· {formatDate(detail.cancelRequestedAt)}</span>
+                    )}
+                  </p>
+                  {detail.cancelReason && (
+                    <p className="mt-1 rounded bg-white/70 px-2 py-1 text-xs italic text-amber-900">“{detail.cancelReason}”</p>
+                  )}
+                  <p className="mt-1.5 text-xs leading-relaxed text-amber-700">
+                    Approving cancels the order and restocks every piece. Declining keeps it — please call the customer first.
+                  </p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      disabled={busyId === detail.id}
+                      onClick={() => {
+                        setCancelTarget(detail);
+                      }}
+                      className="bg-red-600 text-white hover:bg-red-700"
+                    >
+                      <XCircle className="mr-1.5 size-3.5" aria-hidden /> Approve &amp; cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busyId === detail.id}
+                      onClick={() => void declineCancelRequest(detail)}
+                      className="border-amber-400 text-amber-800 hover:bg-amber-100"
+                    >
+                      <ShieldCheck className="mr-1.5 size-3.5" aria-hidden /> Keep order (decline)
+                    </Button>
+                  </div>
+                </section>
+              )}
+
               {/* Customer */}
               <section className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-md border border-[#F0EAD9] bg-[#FBF9F4] p-3 text-sm">

@@ -12,12 +12,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import {
   Heart, Share2, Minus, Plus, ShoppingBag, MessageCircle, Truck, RefreshCcw,
   ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ZoomIn, PenLine, BellRing,
+  Images, Rotate3d, Move3d,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate } from "@/lib/format";
 import type { Product, ProductQuestionDTO } from "@/lib/types";
 import RecentlyViewed, { pushRecent } from "@/components/storefront/RecentlyViewed";
 import SizeGuideDialog from "@/components/storefront/SizeGuideDialog";
+import NotifyMeDialog from "@/components/storefront/NotifyMeDialog";
+import ProductStage from "@/components/three/ProductStage";
 
 export default function ProductView() {
   const params = useApp((s) => s.params);
@@ -39,6 +42,7 @@ export default function ProductView() {
   const [qty, setQty] = useState(1);
   const [stickyBuy, setStickyBuy] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
+  const [mode, setMode] = useState<"photos" | "3d">("photos");
   const buyBoxRef = useRef<HTMLDivElement | null>(null);
 
   // Magnifier: move the transform-origin with the cursor for a true loupe feel
@@ -56,6 +60,7 @@ export default function ProductView() {
       setError(false);
       setImgIdx(0);
       setQty(1);
+      setMode("photos");
       try {
         const res = await fetch(`/api/products/${encodeURIComponent(slug)}`);
         if (!res.ok) throw new Error();
@@ -226,41 +231,94 @@ export default function ProductView() {
         <div className="relative">
           <div
             className="group relative overflow-hidden rounded-xl border border-[#D4AF37]/25 bg-white"
-            onMouseMove={onGalleryMouseMove}
-            onMouseEnter={() => setZooming(true)}
-            onMouseLeave={() => setZooming(false)}
+            style={mode === "3d" ? { backgroundColor: "#0A0A0A" } : undefined}
+            onMouseMove={mode === "photos" ? onGalleryMouseMove : undefined}
+            onMouseEnter={mode === "photos" ? () => setZooming(true) : undefined}
+            onMouseLeave={mode === "photos" ? () => setZooming(false) : undefined}
           >
-            { }
-            <img
-              key={product.images?.[imgIdx] ?? imgIdx}
-              src={product.images?.[imgIdx] || "/images/brand/atelier.png"}
-              alt={`${product.name} — view ${imgIdx + 1}`}
-              className="img-enter aspect-[4/5] w-full object-cover transition-transform duration-300 ease-out will-change-transform"
-              style={{
-                transformOrigin: zoomOrigin,
-                transform: zooming ? "scale(1.85)" : "scale(1)",
-              }}
-            />
-            {product.discountPercent > 0 && (
-              <span className="absolute left-4 top-4 rounded-full bg-[#D4AF37] px-3 py-1 text-xs font-semibold text-black">
-                Save {product.discountPercent}%
-              </span>
+            {mode === "3d" ? (
+              /* ------- interactive 3D stage ------- */
+              <div className="relative aspect-[4/5] w-full" data-stage3d="">
+                <ProductStage
+                  categorySlug={product.category?.slug ?? ""}
+                  material={product.material}
+                  image={product.images?.[0]}
+                  name={product.name}
+                  className="aspect-[4/5] w-full"
+                />
+                {/* stage chrome */}
+                <span className="pointer-events-none absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#0A0A0A]/70 px-3 py-1 text-[11px] uppercase tracking-widest text-[#E6C87A] backdrop-blur">
+                  <Rotate3d className="h-3.5 w-3.5" /> 3D atelier view
+                </span>
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-white/92 px-3 py-1 text-[10px] uppercase tracking-widest text-[#7a611f] shadow-sm backdrop-blur"
+                >
+                  <Move3d className="h-3 w-3" /> Drag to rotate · scroll to zoom
+                </span>
+              </div>
+            ) : (
+              /* ------- photograph with loupe zoom ------- */
+              <>
+                <img
+                  key={product.images?.[imgIdx] ?? imgIdx}
+                  src={product.images?.[imgIdx] || "/images/brand/atelier.png"}
+                  alt={`${product.name} — view ${imgIdx + 1}`}
+                  className="img-enter aspect-[4/5] w-full object-cover transition-transform duration-300 ease-out will-change-transform"
+                  style={{
+                    transformOrigin: zoomOrigin,
+                    transform: zooming ? "scale(1.85)" : "scale(1)",
+                  }}
+                />
+                {product.discountPercent > 0 && (
+                  <span className="absolute left-4 top-4 rounded-full bg-[#D4AF37] px-3 py-1 text-xs font-semibold text-black">
+                    Save {product.discountPercent}%
+                  </span>
+                )}
+                {product.handmade && (
+                  <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-[#0A0A0A]/85 px-3 py-1 text-[11px] uppercase tracking-widest text-[#E6C87A]">
+                    <Hammer className="h-3 w-3" /> Handmade
+                  </span>
+                )}
+                <span
+                  aria-hidden
+                  className={`pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[10px] uppercase tracking-widest text-[#7a611f] shadow-sm backdrop-blur transition-opacity duration-200 ${
+                    zooming ? "opacity-0" : "opacity-100"
+                  }`}
+                >
+                  <ZoomIn className="h-3 w-3" /> Hover to zoom
+                </span>
+              </>
             )}
-            {product.handmade && (
-              <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-[#0A0A0A]/85 px-3 py-1 text-[11px] uppercase tracking-widest text-[#E6C87A]">
-                <Hammer className="h-3 w-3" /> Handmade
-              </span>
-            )}
-            <span
-              aria-hidden
-              className={`pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[10px] uppercase tracking-widest text-[#7a611f] shadow-sm backdrop-blur transition-opacity duration-200 ${
-                zooming ? "opacity-0" : "opacity-100"
-              }`}
-            >
-              <ZoomIn className="h-3 w-3" /> Hover to zoom
-            </span>
           </div>
-          {product.images && product.images.length > 1 && (
+
+          {/* view-mode switch — photographs vs interactive 3D */}
+          <div className="mt-3 flex items-center justify-center" role="tablist" aria-label="Gallery view mode">
+            <div className="flex rounded-full border border-[#D4AF37]/35 bg-white p-1 shadow-sm">
+              <button
+                role="tab"
+                aria-selected={mode === "photos"}
+                onClick={() => setMode("photos")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs uppercase tracking-wider transition-colors ${
+                  mode === "photos" ? "bg-[#0A0A0A] text-[#E6C87A]" : "text-muted-foreground hover:text-[#7a611f]"
+                }`}
+              >
+                <Images className="h-3.5 w-3.5" /> Photographs
+              </button>
+              <button
+                role="tab"
+                aria-selected={mode === "3d"}
+                onClick={() => setMode("3d")}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs uppercase tracking-wider transition-colors ${
+                  mode === "3d" ? "bg-[#0A0A0A] text-[#E6C87A]" : "text-muted-foreground hover:text-[#7a611f]"
+                }`}
+              >
+                <Rotate3d className="h-3.5 w-3.5" /> View in 3D
+              </button>
+            </div>
+          </div>
+
+          {mode === "photos" && product.images && product.images.length > 1 && (
             <div className="mt-3 flex gap-3">
               {product.images.map((src, i) => (
                 <button
@@ -591,98 +649,6 @@ export default function ProductView() {
         productName={product.name}
       />
     </div>
-  );
-}
-
-function NotifyMeDialog({
-  open,
-  onOpenChange,
-  slug,
-  productName,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  slug: string;
-  productName: string;
-}) {
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [fields, setFields] = useState<Record<string, string>>({});
-  const [sending, setSending] = useState(false);
-
-  const submit = async () => {
-    setSending(true);
-    setFields({});
-    try {
-      const res = await fetch(`/api/products/${encodeURIComponent(slug)}/stock-alerts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, phone }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setFields(data.fields ?? {});
-        toast.error(data.error ?? "Could not save your request");
-        return;
-      }
-      toast.success(data.message ?? "You're on the list.");
-      onOpenChange(false);
-      setEmail("");
-      setPhone("");
-    } catch {
-      toast.error("Network error — please try again");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-[#D4AF37]/30 bg-[#FAF7F0] sm:max-w-md">
-        <DialogHeader>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-[#B0A88F]">Back in stock</p>
-          <DialogTitle className="font-serif">Tell me when “{productName}” returns</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="stock-alert-email" className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Email *</label>
-            <Input
-              id="stock-alert-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="border-[#D4AF37]/40 bg-white"
-              autoComplete="email"
-            />
-            {fields.email && <p className="mt-1 text-xs text-destructive">{fields.email}</p>}
-          </div>
-          <div>
-            <label htmlFor="stock-alert-phone" className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">WhatsApp (optional)</label>
-            <Input
-              id="stock-alert-phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98765 43210"
-              className="border-[#D4AF37]/40 bg-white"
-              autoComplete="tel"
-            />
-            {fields.phone && <p className="mt-1 text-xs text-destructive">{fields.phone}</p>}
-          </div>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            One thoughtful note when the piece is ready — no marketing, no sharing. Our concierge can also source
-            similar pieces on request.
-          </p>
-          <Button
-            onClick={() => void submit()}
-            disabled={sending}
-            className="h-11 w-full bg-[#0A0A0A] text-[#E6C87A] hover:bg-[#171717]"
-          >
-            <BellRing className="mr-2 h-4 w-4" /> {sending ? "Saving…" : "Notify me"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 

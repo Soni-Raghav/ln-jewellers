@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home, Printer, Gift, PenLine } from "lucide-react";
+import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home, Printer, Gift, PenLine, XCircle, X } from "lucide-react";
 import { formatINR, formatDate } from "@/lib/format";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface TrackedOrder {
   orderNumber: string;
@@ -29,6 +32,9 @@ interface TrackedOrder {
   giftWrapFee?: number;
   engravingText?: string | null;
   engravingFee?: number;
+  cancelRequested?: boolean;
+  cancelReason?: string | null;
+  cancelRequestedAt?: string | null;
   shipping: number;
   tax: number;
   total: number;
@@ -51,6 +57,10 @@ export default function TrackOrderView() {
   const [order, setOrder] = useState<TrackedOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelFields, setCancelFields] = useState<Record<string, string>>({});
+  const [cancelSending, setCancelSending] = useState(false);
 
   const track = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -78,6 +88,40 @@ export default function TrackOrderView() {
 
   const stageIdx = order ? Math.max(0, STAGES.findIndex((s) => s.key === order.status)) : -1;
   const cancelled = order?.status === "CANCELLED";
+  const cancelEligible =
+    !!order &&
+    !cancelled &&
+    !order.cancelRequested &&
+    ["PLACED", "CONFIRMED", "IN_PRODUCTION"].includes(order.status);
+
+  const submitCancelRequest = async () => {
+    if (!order) return;
+    setCancelSending(true);
+    setCancelFields({});
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(order.orderNumber)}/cancel-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: order.email, reason: cancelReason }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCancelFields(data.fields ?? {});
+        toast.error(data.error ?? "Could not submit your request");
+        return;
+      }
+      toast.success(data.message ?? "Cancellation request received");
+      setCancelDialogOpen(false);
+      setCancelReason("");
+      setOrder((prev) =>
+        prev ? { ...prev, cancelRequested: true, cancelReason: prev.cancelReason ?? cancelReason, cancelRequestedAt: new Date().toISOString() } : prev
+      );
+    } catch {
+      toast.error("Network error — please try again");
+    } finally {
+      setCancelSending(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-2xl px-4 pb-24 pt-28 sm:px-6">
@@ -182,6 +226,23 @@ export default function TrackOrderView() {
               This order was cancelled. If you were charged, our team will confirm your refund via WhatsApp.
             </p>
           )}
+          {order.cancelRequested && !cancelled && (
+            <div className="mt-6 rounded-lg border border-amber-300/70 bg-amber-50 px-4 py-3" role="status">
+              <p className="flex items-center gap-2 text-sm font-medium text-amber-800">
+                <XCircle className="h-4 w-4 shrink-0" /> Cancellation requested
+                {order.cancelRequestedAt && (
+                  <span className="text-xs font-normal text-amber-700/80">· {formatDate(order.cancelRequestedAt)}</span>
+                )}
+              </p>
+              {order.cancelReason && (
+                <p className="mt-1 text-xs italic text-amber-700">“{order.cancelReason}”</p>
+              )}
+              <p className="mt-1 text-xs leading-relaxed text-amber-700/90">
+                Your request is with our concierge — we&apos;ll call to confirm. Your piece stays reserved for you until
+                then; no charge is made until production begins.
+              </p>
+            </div>
+          )}
 
           <div className="mt-8 space-y-3">
             {order.items.map((i, idx) => (
@@ -224,6 +285,15 @@ export default function TrackOrderView() {
             >
               <Printer className="mr-2 h-4 w-4" /> Print invoice
             </Button>
+            {cancelEligible && (
+              <Button
+                variant="outline"
+                onClick={() => setCancelDialogOpen(true)}
+                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+              >
+                <XCircle className="mr-2 h-4 w-4" /> Request cancellation
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => navigate("shop")}
@@ -243,6 +313,55 @@ export default function TrackOrderView() {
           <PackageSearch className="mx-auto mb-2 h-6 w-6 text-[#D4AF37]" />
           Your order number is in the confirmation shown after checkout (it starts with <span className="font-mono">AUR-</span>).
         </div>
+      )}
+
+      {/* request-cancellation dialog */}
+      {order && (
+        <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+          <DialogContent className="border-[#D4AF37]/30 bg-[#FAF7F0] sm:max-w-md">
+            <DialogHeader>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-[#B0A88F]">Change of heart?</p>
+              <DialogTitle className="font-serif">Request cancellation of {order.orderNumber}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Tell us briefly why — our concierge will call to confirm before anything is changed. Orders already in
+                production may involve making charges as per our policy.
+              </p>
+              <div>
+                <label htmlFor="cancel-reason" className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">
+                  Reason *
+                </label>
+                <Textarea
+                  id="cancel-reason"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="e.g. Gift date changed, found another piece…"
+                  rows={3}
+                  maxLength={300}
+                  className="border-[#D4AF37]/40 bg-white"
+                />
+                {cancelFields.reason && <p className="mt-1 text-xs text-destructive">{cancelFields.reason}</p>}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => void submitCancelRequest()}
+                  disabled={cancelSending}
+                  className="h-11 flex-1 bg-red-600 text-white hover:bg-red-700"
+                >
+                  <XCircle className="mr-2 h-4 w-4" /> {cancelSending ? "Sending…" : "Submit request"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setCancelDialogOpen(false)}
+                  className="h-11 border-border text-foreground hover:bg-[#D4AF37]/10"
+                >
+                  <X className="mr-1.5 h-4 w-4" /> Keep order
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       <div className="mt-8 text-center">

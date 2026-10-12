@@ -13,12 +13,13 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Heart, ShoppingBag, Star } from "lucide-react";
+import { BellRing, Heart, ShoppingBag, Star } from "lucide-react";
 import type { Product, ProductVariant } from "@/lib/types";
 import { useApp } from "@/lib/store";
 import { formatINR, netPrice, stockLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import NotifyMeDialog from "@/components/storefront/NotifyMeDialog";
 
 /** Default variant = first with stock (when tracking), else first variant. */
 function pickVariant(product: Product): ProductVariant | null {
@@ -46,6 +47,7 @@ export function ProductCard({ product, onOpen, className }: ProductCardProps) {
   useApp((s) => s.wishlist);
 
   const [imageFailed, setImageFailed] = useState(false);
+  const [notifyOpen, setNotifyOpen] = useState(false);
 
   const variant = useMemo(() => pickVariant(product), [product]);
   const grossPrice = product.price + (variant?.priceDelta ?? 0);
@@ -99,6 +101,11 @@ export function ProductCard({ product, onOpen, className }: ProductCardProps) {
     toast.success(
       wished ? `${product.name} removed from wishlist` : `${product.name} saved to wishlist`
     );
+  };
+
+  const handleNotify = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setNotifyOpen(true);
   };
 
   return (
@@ -176,27 +183,43 @@ export function ProductCard({ product, onOpen, className }: ProductCardProps) {
           />
         </button>
 
-        {/* out-of-stock overlay */}
+        {/* out-of-stock veil — warm, not stark; invites the concierge path */}
         {outOfStock && (
-          <div className="absolute inset-0 grid place-items-center bg-black/45">
-            <span className="border border-white/30 px-3 py-1 text-xs uppercase tracking-[0.25em] text-white">
-              Out of stock
+          <div className="absolute inset-0 grid place-items-center bg-gradient-to-t from-black/60 via-black/35 to-black/25 backdrop-blur-[1.5px]">
+            <span className="flex flex-col items-center gap-2">
+              <span className="border border-[#E6C87A]/50 bg-[#0A0A0A]/60 px-3 py-1 text-[11px] uppercase tracking-[0.25em] text-[#E6C87A] backdrop-blur">
+                Sold
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-white/70">
+                Crafted to order
+              </span>
             </span>
           </div>
         )}
 
-        {/* quick add (hover) */}
+        {/* quick add (hover) — or a notify-me path when the piece is sold */}
         <div className="absolute inset-x-3 bottom-3 translate-y-2 opacity-0 transition-all duration-300 group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100">
-          <Button
-            type="button"
-            size="sm"
-            disabled={outOfStock}
-            onClick={handleQuickAdd}
-            className="h-9 w-full border border-[#D4AF37]/40 bg-[#0A0A0A]/90 text-[#FAF7F0] backdrop-blur hover:bg-[#171717]"
-          >
-            <ShoppingBag className="size-3.5" />
-            {outOfStock ? "Unavailable" : "Quick add"}
-          </Button>
+          {outOfStock ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleNotify}
+              className="h-9 w-full border border-[#D4AF37]/50 bg-[#FAF7F0]/95 text-[#7a611f] shadow-sm backdrop-blur hover:bg-[#D4AF37] hover:text-black"
+            >
+              <BellRing className="size-3.5" />
+              Notify me
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleQuickAdd}
+              className="h-9 w-full border border-[#D4AF37]/40 bg-[#0A0A0A]/90 text-[#FAF7F0] backdrop-blur hover:bg-[#171717]"
+            >
+              <ShoppingBag className="size-3.5" />
+              Quick add
+            </Button>
+          )}
         </div>
       </div>
 
@@ -243,6 +266,14 @@ export function ProductCard({ product, onOpen, className }: ProductCardProps) {
           </span>
         </div>
       </div>
+
+      {/* back-in-stock dialog for sold-out pieces */}
+      <NotifyMeDialog
+        open={notifyOpen}
+        onOpenChange={setNotifyOpen}
+        slug={product.slug}
+        productName={product.name}
+      />
     </div>
   );
 }

@@ -164,6 +164,9 @@ model Order {
   giftWrapFee   Float       @default(0)
   engravingText String? // personalised inscription requested at checkout
   engravingFee  Float       @default(0)
+  cancelRequested   Boolean   @default(false) // customer asked the concierge to cancel
+  cancelReason      String? // why the customer wants to cancel
+  cancelRequestedAt DateTime?
   payments      Payment[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
