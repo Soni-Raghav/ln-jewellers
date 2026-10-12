@@ -18,7 +18,8 @@ import { cn } from "@/lib/utils";
 import { formatLongDate } from "@/lib/format";
 import { TIME_SLOTS, istToday } from "@/lib/appointments";
 
-type SlotInfo = { slot: string; remaining: number; full: boolean };
+type SlotTypeInfo = { remaining: number; full: boolean };
+type SlotInfo = { slot: string; types: { STORE_VISIT: SlotTypeInfo; VIDEO_CALL: SlotTypeInfo } };
 
 type Confirmed = { date: string; timeSlot: string; typeLabel: string };
 
@@ -29,7 +30,7 @@ export default function AppointmentBooking() {
   const [sending, setSending] = useState(false);
   const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
   const [slots, setSlots] = useState<SlotInfo[] | null>(null);
-  const [capacity, setCapacity] = useState<number | null>(null);
+  const [capacities, setCapacities] = useState<{ STORE_VISIT: number; VIDEO_CALL: number } | null>(null);
 
   const minDate = useMemo(() => istToday(), []);
   const today = minDate;
@@ -48,7 +49,7 @@ export default function AppointmentBooking() {
         if (cancelled) return;
         if (d?.slots) {
           setSlots(d.slots);
-          setCapacity(typeof d.capacity === "number" ? d.capacity : null);
+          setCapacities(d.capacities ?? null);
         } else {
           setSlots(null); // fall back to the static slot list on failure
         }
@@ -61,8 +62,13 @@ export default function AppointmentBooking() {
     };
   }, [form.date]);
 
+  // Availability is per meeting type — the video book and the atelier book fill independently.
   const slotState = useCallback(
-    (s: string): SlotInfo => slots?.find((x) => x.slot === s) ?? { slot: s, remaining: 1, full: false },
+    (s: string): SlotInfo => {
+      const empty: SlotTypeInfo = { remaining: 1, full: false };
+      const found = slots?.find((x) => x.slot === s);
+      return found ?? { slot: s, types: { STORE_VISIT: empty, VIDEO_CALL: empty } };
+    },
     [slots]
   );
 
@@ -204,7 +210,7 @@ export default function AppointmentBooking() {
                   value={form.timeSlot}
                   onChange={(e) => {
                     const chosen = e.target.value;
-                    const info = slots?.find((x) => x.slot === chosen);
+                    const info = slots?.find((x) => x.slot === chosen)?.types[type];
                     if (info?.full) {
                       toast.info("That slot is fully booked — please choose another time.");
                       return;
@@ -216,8 +222,12 @@ export default function AppointmentBooking() {
                 >
                   <option value="">Select a slot…</option>
                   {TIME_SLOTS.map((s) => {
-                    const info = slotState(s);
-                    const suffix = info.full ? " — fully booked" : slots && info.remaining <= 1 ? ` — ${info.remaining} seat left` : "";
+                    const info = slotState(s).types[type];
+                    const suffix = info.full
+                      ? " — fully booked"
+                      : slots && info.remaining <= 1
+                        ? " — 1 seat left"
+                        : "";
                     return (
                       <option key={s} value={s} disabled={info.full}>
                         {s} IST{suffix}
@@ -226,9 +236,9 @@ export default function AppointmentBooking() {
                   })}
                 </select>
                 {fields.timeSlot && <p className="mt-1 text-xs text-destructive">{fields.timeSlot}</p>}
-                {slots && capacity && (
+                {slots && capacities && (
                   <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Users className="h-3 w-3 shrink-0" aria-hidden /> Up to {capacity} {capacity === 1 ? "guest" : "guests"} per private slot — availability shown live from the atelier&apos;s book.
+                    <Users className="h-3 w-3 shrink-0" aria-hidden /> Up to {capacities[type]} {capacities[type] === 1 ? "guest" : "guests"} per private slot — live availability from the atelier&apos;s book, kept separately for visits and video calls.
                   </p>
                 )}
               </div>

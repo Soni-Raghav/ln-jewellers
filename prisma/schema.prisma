@@ -193,6 +193,7 @@ model OrderItem {
   quantity    Int
   lineTotal   Float
   engravingText String? // per-piece inscription (Order.engravingFee covers all engraved pieces)
+  engravingFont String? // SERIF | SCRIPT | SANS — lettering style chosen on the product page (null = classic serif)
   createdAt   DateTime        @default(now())
 
   @@index([orderId])
@@ -328,7 +329,8 @@ model StoreSettings {
   giftWrapFee      Float    @default(500)
   engravingEnabled Boolean  @default(true)
   engravingFee     Float    @default(1500)
-  appointmentSlotCapacity Int @default(2) // max pending+confirmed bookings per slot per day
+  appointmentVisitCapacity Int @default(2) // max pending+confirmed atelier visits per slot per day
+  appointmentVideoCapacity Int @default(2) // max pending+confirmed video consultations per slot per day
   aboutStory       String   @default("")
   missionVision    String   @default("")
   shippingPolicy   String   @default("")

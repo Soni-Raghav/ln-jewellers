@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home, Printer, Gift, PenLine, XCircle, X } from "lucide-react";
-import { formatINR, formatDate } from "@/lib/format";
+import { formatINR, formatDate, engravingFontLabel } from "@/lib/format";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -40,7 +40,7 @@ interface TrackedOrder {
   tax: number;
   total: number;
   createdAt: string;
-  items: { name: string; sku: string; variantName: string | null; image: string | null; quantity: number; lineTotal: number; engravingText?: string | null }[];
+  items: { name: string; sku: string; variantName: string | null; image: string | null; quantity: number; lineTotal: number; engravingText?: string | null; engravingFont?: string | null }[];
 }
 
 const STAGES = [
@@ -257,6 +257,7 @@ export default function TrackOrderView() {
                     <p className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/8 px-2 py-0.5 text-[11px] text-[#7a611f]">
                       <PenLine className="h-3 w-3 shrink-0" aria-hidden />
                       <span className="truncate font-serif italic tracking-wider">“{i.engravingText}”</span>
+                      <span className="shrink-0 rounded-full bg-[#D4AF37]/15 px-1.5 text-[9px] uppercase tracking-wider">{engravingFontLabel(i.engravingFont)}</span>
                     </p>
                   )}
                 </div>

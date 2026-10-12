@@ -12,11 +12,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import {
   Heart, Share2, Minus, Plus, ShoppingBag, MessageCircle, Truck, RefreshCcw,
   ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ChevronDown, ZoomIn, PenLine, BellRing,
-  Images, Rotate3d, Move3d, Camera,
+  Images, Rotate3d, Move3d, Camera, RotateCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate } from "@/lib/format";
-import type { Product, ProductQuestionDTO } from "@/lib/types";
+import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate, ENGRAVING_FONTS, ENGRAVING_FONT_ORDER } from "@/lib/format";
+import type { Product, ProductQuestionDTO, EngravingFont } from "@/lib/types";
 import RecentlyViewed, { pushRecent } from "@/components/storefront/RecentlyViewed";
 import SizeGuideDialog from "@/components/storefront/SizeGuideDialog";
 import NotifyMeDialog from "@/components/storefront/NotifyMeDialog";
@@ -41,10 +41,12 @@ export default function ProductView() {
   const [variantId, setVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
   const [engravingText, setEngravingText] = useState("");
+  const [engravingFont, setEngravingFont] = useState<EngravingFont>("SERIF");
   const [engravingOpen, setEngravingOpen] = useState(false);
   const [stickyBuy, setStickyBuy] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [mode, setMode] = useState<"photos" | "3d">("photos");
+  const [spinMode, setSpinMode] = useState(false);
   const stageCaptureRef = useRef<(() => string) | null>(null);
   const buyBoxRef = useRef<HTMLDivElement | null>(null);
 
@@ -64,7 +66,9 @@ export default function ProductView() {
       setImgIdx(0);
       setQty(1);
       setMode("photos");
+      setSpinMode(false);
       setEngravingText("");
+      setEngravingFont("SERIF");
       setEngravingOpen(false);
       try {
         const res = await fetch(`/api/products/${encodeURIComponent(slug)}`);
@@ -137,11 +141,15 @@ export default function ProductView() {
       variantName: variant?.name ?? null,
       maxStock: Math.max(maxStock, 1),
       engravingText: engraving || null,
+      engravingFont: engraving ? engravingFont : null,
     });
     toast.success(`${product.name} added to your bag`, {
-      description: engraving ? `${qty} × ${formatINR(display)} · engraved “${engraving}”` : `${qty} × ${formatINR(display)}`,
+      description: engraving
+        ? `${qty} × ${formatINR(display)} · engraved “${engraving}” in ${ENGRAVING_FONTS[engravingFont].label.toLowerCase()}`
+        : `${qty} × ${formatINR(display)}`,
     });
     setEngravingText("");
+    setEngravingFont("SERIF");
     setEngravingOpen(false);
     if (thenCheckout) navigate("checkout");
   };
@@ -313,12 +321,27 @@ export default function ProductView() {
                   image={product.images?.[0]}
                   name={product.name}
                   captureRef={stageCaptureRef}
+                  spin={spinMode}
                   className="aspect-[4/5] w-full"
                 />
                 {/* stage chrome */}
                 <span className="pointer-events-none absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#0A0A0A]/70 px-3 py-1 text-[11px] uppercase tracking-widest text-[#E6C87A] backdrop-blur">
                   <Rotate3d className="h-3.5 w-3.5" /> 3D atelier view
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setSpinMode((v) => !v)}
+                  aria-pressed={spinMode}
+                  className={`absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] uppercase tracking-widest backdrop-blur transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37] ${
+                    spinMode
+                      ? "border-[#D4AF37] bg-[#D4AF37] text-[#171717] shadow-[0_4px_16px_rgba(212,175,55,0.5)]"
+                      : "border-[#D4AF37]/50 bg-[#0A0A0A]/70 text-[#E6C87A] hover:bg-[#D4AF37] hover:text-[#171717]"
+                  }`}
+                  title="Spin the piece a full 360° for a showcase view"
+                >
+                  <RotateCw className={`h-3 w-3 ${spinMode ? "animate-spin" : ""}`} style={spinMode ? { animationDuration: "2.5s" } : undefined} />
+                  {spinMode ? "360° · stop" : "Spin 360°"}
+                </button>
                 <button
                   type="button"
                   onClick={handleSnapshot}
@@ -593,9 +616,49 @@ export default function ProductView() {
                   </div>
                   {engravingText.trim() && (
                     <div aria-hidden className="mt-2 rounded-md border border-[#D4AF37]/40 bg-gradient-to-br from-[#FAF7F0] via-[#F7EFD9] to-[#EFE3C4] px-3 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
-                      <p className="break-words font-serif text-base italic uppercase tracking-[0.2em] text-[#7a611f]">{engravingText.trim()}</p>
+                      <p
+                        className={`break-words text-base text-[#7a611f] ${ENGRAVING_FONTS[engravingFont].className}`}
+                        style={ENGRAVING_FONTS[engravingFont].style}
+                      >
+                        {engravingText.trim()}
+                      </p>
+                      <p className="mt-1 text-[10px] uppercase tracking-widest text-[#A8862A]">{ENGRAVING_FONTS[engravingFont].label} hand</p>
                     </div>
                   )}
+                  {/* lettering style — the karigar's three hands */}
+                  <div className="mt-3">
+                    <p className="mb-1.5 text-[11px] uppercase tracking-widest text-muted-foreground">Lettering style</p>
+                    <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Engraving lettering style">
+                      {ENGRAVING_FONT_ORDER.map((f) => {
+                        const active = engravingFont === f;
+                        return (
+                          <button
+                            key={f}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            onClick={() => setEngravingFont(f)}
+                            className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2.5 transition-all ${
+                              active
+                                ? "border-[#D4AF37] bg-[#D4AF37]/10 shadow-[0_6px_18px_-10px_rgba(212,175,55,0.8)]"
+                                : "border-border bg-white hover:border-[#D4AF37]/50"
+                            }`}
+                          >
+                            <span
+                              aria-hidden
+                              className={`text-lg leading-none text-[#7a611f] ${ENGRAVING_FONTS[f].className}`}
+                              style={ENGRAVING_FONTS[f].style}
+                            >
+                              {ENGRAVING_FONTS[f].sample}
+                            </span>
+                            <span className={`text-[10px] leading-tight ${active ? "font-medium text-[#5d4a13]" : "text-muted-foreground"}`}>
+                              {ENGRAVING_FONTS[f].label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

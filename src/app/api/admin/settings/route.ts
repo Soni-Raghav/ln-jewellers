@@ -36,7 +36,8 @@ export async function PATCH(req: Request) {
     if (body.giftWrapFee !== undefined) data.giftWrapFee = Math.max(0, toFloat(body.giftWrapFee, 500));
     if (body.engravingEnabled !== undefined) data.engravingEnabled = !!body.engravingEnabled;
     if (body.engravingFee !== undefined) data.engravingFee = Math.max(0, toFloat(body.engravingFee, 1500));
-    if (body.appointmentSlotCapacity !== undefined) data.appointmentSlotCapacity = Math.min(10, Math.max(1, Math.round(toFloat(body.appointmentSlotCapacity, 2))));
+    if (body.appointmentVisitCapacity !== undefined) data.appointmentVisitCapacity = Math.min(10, Math.max(1, Math.round(toFloat(body.appointmentVisitCapacity, 2))));
+    if (body.appointmentVideoCapacity !== undefined) data.appointmentVideoCapacity = Math.min(10, Math.max(1, Math.round(toFloat(body.appointmentVideoCapacity, 2))));
     if (body.razorpayEnabled !== undefined) data.razorpayEnabled = !!body.razorpayEnabled;
     if (body.faq !== undefined) {
       const faq = Array.isArray(body.faq)

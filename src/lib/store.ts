@@ -14,8 +14,8 @@ interface AppState {
   // ---- cart ----
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
-  removeFromCart: (productId: string, variantId?: string | null, engravingText?: string | null) => void;
-  updateQuantity: (productId: string, variantId: string | null | undefined, quantity: number, engravingText?: string | null) => void;
+  removeFromCart: (productId: string, variantId?: string | null, engravingText?: string | null, engravingFont?: string | null) => void;
+  updateQuantity: (productId: string, variantId: string | null | undefined, quantity: number, engravingText?: string | null, engravingFont?: string | null) => void;
   setItemEngraving: (productId: string, variantId: string | null | undefined, from: string | null | undefined, to: string | null) => void;
   clearCart: () => void;
   cartCount: () => number;
@@ -127,15 +127,17 @@ export const useApp = create<AppState>()(
       },
 
       cart: [],
-      // Two lines are the same physical piece only when product, variant AND
-      // engraving match — an engraved "A · R" ring and a plain ring are separate lines.
+      // Two lines are the same physical piece only when product, variant,
+      // engraving text AND lettering style match — an engraved "A · R" ring in
+      // elegant script and the same inscription in classic serif are separate jobs.
       addToCart: (item) => {
         const cart = [...get().cart];
         const idx = cart.findIndex(
           (c) =>
             c.productId === item.productId &&
             (c.variantId ?? null) === (item.variantId ?? null) &&
-            (c.engravingText ?? "") === (item.engravingText ?? "")
+            (c.engravingText ?? "") === (item.engravingText ?? "") &&
+            (c.engravingFont ?? "SERIF") === (item.engravingFont ?? "SERIF")
         );
         if (idx >= 0) {
           cart[idx] = {
@@ -147,20 +149,22 @@ export const useApp = create<AppState>()(
         }
         set({ cart });
       },
-      removeFromCart: (productId, variantId, engravingText) =>
+      removeFromCart: (productId, variantId, engravingText, engravingFont) =>
         set({
           cart: get().cart.filter(
             (c) =>
               !(c.productId === productId && (c.variantId ?? null) === (variantId ?? null)) ||
-              (engravingText !== undefined && (c.engravingText ?? "") !== (engravingText ?? ""))
+              (engravingText !== undefined && (c.engravingText ?? "") !== (engravingText ?? "")) ||
+              (engravingFont !== undefined && (c.engravingFont ?? "SERIF") !== (engravingFont ?? "SERIF"))
           ),
         }),
-      updateQuantity: (productId, variantId, quantity, engravingText) => {
+      updateQuantity: (productId, variantId, quantity, engravingText, engravingFont) => {
         const cart = get()
           .cart.map((c) =>
             c.productId === productId &&
             (c.variantId ?? null) === (variantId ?? null) &&
-            (engravingText === undefined || (c.engravingText ?? "") === (engravingText ?? ""))
+            (engravingText === undefined || (c.engravingText ?? "") === (engravingText ?? "")) &&
+            (engravingFont === undefined || (c.engravingFont ?? "SERIF") === (engravingFont ?? "SERIF"))
               ? { ...c, quantity: Math.max(1, Math.min(quantity, Math.max(c.maxStock, 1))) }
               : c
           )

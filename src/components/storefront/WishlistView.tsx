@@ -31,12 +31,31 @@ export default function WishlistView() {
     window.open(waLink(settings.whatsappNumber, lines.join("\n")), "_blank", "noopener");
   };
 
-  const copyList = async () => {
+  const wishlistText = () => {
+    const list = items
+      .slice(0, 12)
+      .map((p, i) => `${i + 1}. ${p.name} — ${formatINR(netPrice(p.price, p.discountPercent))}`)
+      .join("\n");
+    const url = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}#/wishlist` : "";
+    return `My Aurelia Jewels wishlist ✨\n\n${list}\n\n${url}`;
+  };
+
+  /** Native share sheet (mobile) with graceful clipboard fallback on desktop. */
+  const shareList = async () => {
     if (items.length === 0) return;
-    const text = items.map((p) => `• ${p.name} — ${formatINR(netPrice(p.price, p.discountPercent))}`).join("\n");
+    const text = wishlistText();
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "My Aurelia Jewels wishlist", text });
+        return;
+      } catch (err) {
+        if ((err as DOMException)?.name === "AbortError") return; // user closed the sheet
+        // fall through to clipboard on any share failure
+      }
+    }
     try {
-      await navigator.clipboard.writeText(`My Aurelia Jewels wishlist:\n${text}`);
-      toast.success("Wishlist copied to clipboard");
+      await navigator.clipboard.writeText(text);
+      toast.success("Wishlist copied to clipboard", { description: "Paste it in a chat with someone special." });
     } catch {
       toast.error("Could not copy — please try again");
     }
@@ -82,10 +101,10 @@ export default function WishlistView() {
             </Button>
             <Button
               variant="outline"
-              onClick={copyList}
+              onClick={shareList}
               className="h-11 border-[#D4AF37]/50 text-[#7a611f] hover:bg-[#D4AF37]/10 hover:text-[#7a611f]"
             >
-              <Share2 className="mr-2 h-4 w-4" /> Copy list
+              <Share2 className="mr-2 h-4 w-4" /> Share list
             </Button>
           </div>
         )}

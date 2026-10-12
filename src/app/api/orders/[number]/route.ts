@@ -54,6 +54,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ number: string 
           unitPrice: i.unitPrice,
           lineTotal: i.lineTotal,
           engravingText: i.engravingText,
+          engravingFont: i.engravingFont,
         })),
       },
     });

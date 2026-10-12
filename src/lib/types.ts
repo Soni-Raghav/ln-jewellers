@@ -84,6 +84,8 @@ export interface Product {
   updatedAt: string;
 }
 
+export type EngravingFont = "SERIF" | "SCRIPT" | "SANS";
+
 export interface CartItem {
   productId: string;
   variantId?: string | null;
@@ -97,6 +99,7 @@ export interface CartItem {
   variantName?: string | null;
   maxStock: number;
   engravingText?: string | null; // per-piece inscription set on the product page
+  engravingFont?: EngravingFont | null; // lettering style for the inscription (null/undefined = classic serif)
 }
 
 export interface OrderItemDTO {
@@ -110,6 +113,7 @@ export interface OrderItemDTO {
   quantity: number;
   lineTotal: number;
   engravingText?: string | null;
+  engravingFont?: string | null;
 }
 
 export interface OrderDTO {
@@ -164,7 +168,8 @@ export interface StoreSettingsDTO {
   giftWrapFee: number;
   engravingEnabled: boolean;
   engravingFee: number;
-  appointmentSlotCapacity: number;
+  appointmentVisitCapacity: number;
+  appointmentVideoCapacity: number;
   aboutStory: string;
   missionVision: string;
   shippingPolicy: string;

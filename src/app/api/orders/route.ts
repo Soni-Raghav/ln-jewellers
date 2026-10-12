@@ -10,6 +10,7 @@ interface IncomingItem {
   variantId?: unknown;
   quantity?: unknown;
   engravingText?: unknown;
+  engravingFont?: unknown;
 }
 
 function generateOrderNumber(): string {
@@ -58,17 +59,22 @@ export async function POST(req: Request) {
     const taxRate = settings.taxRatePercent;
 
     // ---- Recalculate EVERYTHING server-side. Never trust the client. ----
-    const incoming: { productId: string; variantId: string | null; quantity: number; engravingText: string }[] = [];
+    const ENGRAVING_FONTS = ["SERIF", "SCRIPT", "SANS"] as const;
+    const incoming: { productId: string; variantId: string | null; quantity: number; engravingText: string; engravingFont: string }[] = [];
     for (const raw of body.items.slice(0, 30) as IncomingItem[]) {
       const productId = sanitize(raw.productId).slice(0, 40);
       const variantId = raw.variantId ? sanitize(raw.variantId).slice(0, 40) : null;
       const quantity = Math.trunc(Number(raw.quantity));
       const engravingText = sanitize(raw.engravingText).slice(0, 60);
+      // Lettering style is chosen per piece; anything unknown falls back to classic serif.
+      const engravingFont = ENGRAVING_FONTS.includes(raw.engravingFont as (typeof ENGRAVING_FONTS)[number])
+        ? (raw.engravingFont as string)
+        : "SERIF";
       if (!productId || !Number.isFinite(quantity) || quantity < 1 || quantity > 20)
         return badRequest("Invalid item quantity");
       if (engravingText && !/[A-Za-z0-9]/.test(engravingText))
         return badRequest("Engraving must contain letters or numbers");
-      incoming.push({ productId, variantId, quantity, engravingText });
+      incoming.push({ productId, variantId, quantity, engravingText, engravingFont });
     }
 
     const productIds = [...new Set(incoming.map((i) => i.productId))];
@@ -89,6 +95,7 @@ export async function POST(req: Request) {
       quantity: number;
       lineTotal: number;
       engravingText: string | null;
+      engravingFont: string | null;
       stockSource: { kind: "product" | "variant"; stock: number; track: boolean };
     };
 
@@ -125,6 +132,7 @@ export async function POST(req: Request) {
         quantity: item.quantity,
         lineTotal: unitPrice * item.quantity,
         engravingText: null, // filled in below once engraving settings are known
+        engravingFont: null,
         stockSource: { kind: variant ? "variant" : "product", stock, track },
       });
     }
@@ -151,13 +159,16 @@ export async function POST(req: Request) {
     // atelier's fee applies per engraved piece (line quantity × fee).
     let engravedPieces = 0;
     if (engravingEnabled) {
-      for (const line of lines) {
-        const wanted = incoming.find((i) => i.productId === line.productId && (i.variantId ?? null) === (line.variantId ?? null) && i.engravingText);
-        if (wanted) {
-          line.engravingText = wanted.engravingText;
+      // `lines` is built 1:1 from `incoming`, so index mapping is exact — matching by
+      // product+variant+font would be ambiguous and could drop an inscription.
+      incoming.forEach((item, idx) => {
+        if (item.engravingText) {
+          const line = lines[idx];
+          line.engravingText = item.engravingText;
+          line.engravingFont = item.engravingFont;
           engravedPieces += line.quantity;
         }
-      }
+      });
     }
     const engravingFee = engravedPieces * Math.max(0, settings.engravingFee ?? 0);
     const total = subtotal - couponDiscount + shipping + tax + giftWrapFee + engravingFee;
@@ -221,6 +232,7 @@ export async function POST(req: Request) {
                 quantity: l.quantity,
                 lineTotal: l.lineTotal,
                 engravingText: l.engravingText,
+                engravingFont: l.engravingFont,
               })),
             },
           },
@@ -287,6 +299,7 @@ export async function POST(req: Request) {
             unitPrice: i.unitPrice,
             lineTotal: i.lineTotal,
             engravingText: i.engravingText,
+            engravingFont: i.engravingFont,
           })),
           totalsText: {
             subtotal: formatINR(order.subtotal),

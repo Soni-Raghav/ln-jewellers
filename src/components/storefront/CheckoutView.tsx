@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Checkbox } from "@/components/ui/checkbox";
 import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket, Gift, PenLine, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { formatINR, netPrice, waOrderMessage } from "@/lib/format";
+import { formatINR, netPrice, waOrderMessage, engravingFontLabel } from "@/lib/format";
 import type { CartItem, StoreSettingsDTO } from "@/lib/types";
 
 interface PlacedOrder {
@@ -27,7 +27,7 @@ interface PlacedOrder {
   engravingFee: number;
   tax: number;
   total: number;
-  items: { name: string; sku: string; variantName: string | null; quantity: number; lineTotal: number; engravingText?: string | null }[];
+  items: { name: string; sku: string; variantName: string | null; quantity: number; lineTotal: number; engravingText?: string | null; engravingFont?: string | null }[];
 }
 
 interface AppliedCoupon {
@@ -92,6 +92,7 @@ export default function CheckoutView() {
                 {i.engravingText && (
                   <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-[#7a611f]">
                     <PenLine className="h-3 w-3" /> Engraved “{i.engravingText}”
+                    <span className="rounded-full bg-[#D4AF37]/15 px-1.5 text-[9px] uppercase tracking-wider">{engravingFontLabel(i.engravingFont)}</span>
                   </p>
                 )}
               </div>
@@ -201,7 +202,7 @@ export default function CheckoutView() {
           giftWrap,
           giftMessage: giftWrap ? giftMessage.trim() : "",
           paymentMethod: method,
-          items: cart.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, engravingText: i.engravingText ?? "" })),
+          items: cart.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity, engravingText: i.engravingText ?? "", engravingFont: i.engravingFont ?? "" })),
         }),
       });
       const data = await res.json();
@@ -374,12 +375,13 @@ export default function CheckoutView() {
                 {cart.some((i: CartItem) => i.engravingText) ? (
                   <ul className="mt-3 space-y-2">
                     {cart.filter((i: CartItem) => i.engravingText).map((i: CartItem) => (
-                      <li key={`${i.productId}-${i.variantId ?? "b"}-${i.engravingText}`} className="flex items-center gap-2.5 rounded-md border border-[#D4AF37]/30 bg-white px-3 py-2">
+                      <li key={`${i.productId}-${i.variantId ?? "b"}-${i.engravingText}-${i.engravingFont ?? "SERIF"}`} className="flex items-center gap-2.5 rounded-md border border-[#D4AF37]/30 bg-white px-3 py-2">
                         <img src={i.image || "/images/brand/atelier.png"} alt="" className="h-8 w-8 rounded border border-border object-cover" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-medium">{i.name}{i.variantName ? ` · ${i.variantName}` : ""} × {i.quantity}</p>
                           <p className="truncate font-serif text-xs italic tracking-wider text-[#7a611f]">“{i.engravingText}”</p>
                         </div>
+                        <span className="shrink-0 rounded-full bg-[#D4AF37]/12 px-2 py-0.5 text-[9px] uppercase tracking-wider text-[#7a611f]">{engravingFontLabel(i.engravingFont)}</span>
                       </li>
                     ))}
                   </ul>
@@ -438,7 +440,7 @@ export default function CheckoutView() {
             {cart.map((item: CartItem) => {
               const unit = netPrice(item.unitPrice, item.discountPercent);
               return (
-                <div key={`${item.productId}-${item.variantId ?? "b"}-${item.engravingText ?? ""}`} className="flex items-center gap-3">
+                <div key={`${item.productId}-${item.variantId ?? "b"}-${item.engravingText ?? ""}-${item.engravingFont ?? "SERIF"}`} className="flex items-center gap-3">
                   { }
                   <img src={item.image || "/images/brand/atelier.png"} alt={item.name} className="h-14 w-14 rounded-md border border-border object-cover" />
                   <div className="min-w-0 flex-1">
@@ -447,6 +449,7 @@ export default function CheckoutView() {
                     {item.engravingText && (
                       <p className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/8 px-2 py-0.5 text-[10px] text-[#7a611f]">
                         <PenLine className="h-2.5 w-2.5 shrink-0" /> <span className="truncate font-serif italic tracking-wider">“{item.engravingText}”</span>
+                        <span className="shrink-0 rounded-full bg-[#D4AF37]/15 px-1.5 text-[9px] uppercase tracking-wider">{engravingFontLabel(item.engravingFont)}</span>
                       </p>
                     )}
                   </div>

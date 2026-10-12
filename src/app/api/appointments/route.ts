@@ -7,8 +7,9 @@ import { TIME_SLOTS, istToday } from "@/lib/appointments";
  * POST /api/appointments — public booking request for a private atelier
  * viewing or a video consultation. Rate-limited, fully validated and
  * sanitized server-side; the atelier confirms each request personally.
- * Each slot holds at most StoreSettings.appointmentSlotCapacity pending or
- * confirmed bookings — the atelier's book never overbooks.
+ * Each slot holds at most StoreSettings.appointmentVisitCapacity (atelier
+ * visits) or appointmentVideoCapacity (video calls) pending or confirmed
+ * bookings — the atelier's book never overbooks.
  */
 
 const TYPES = ["STORE_VISIT", "VIDEO_CALL"] as const;
@@ -51,11 +52,18 @@ export async function POST(req: Request) {
     if (!(TIME_SLOTS as readonly string[]).includes(timeSlot)) fields.timeSlot = "Choose one of the available time slots.";
     if (Object.keys(fields).length > 0) return badRequest("Please review the highlighted fields.", fields);
 
-    // ---- Slot capacity: the atelier's book never overbooks (server-side truth) ----
-    const settings = await db.storeSettings.findUnique({ where: { id: "singleton" }, select: { appointmentSlotCapacity: true } });
-    const capacity = Math.max(1, settings?.appointmentSlotCapacity ?? 2);
+    // ---- Slot capacity per TYPE: the atelier's book never overbooks (server-side truth).
+    // Visits and video calls have separate books — a busy video hour doesn't crowd out the atelier.
+    const settings = await db.storeSettings.findUnique({
+      where: { id: "singleton" },
+      select: { appointmentVisitCapacity: true, appointmentVideoCapacity: true },
+    });
+    const capacity = Math.max(
+      1,
+      type === "VIDEO_CALL" ? (settings?.appointmentVideoCapacity ?? 2) : (settings?.appointmentVisitCapacity ?? 2)
+    );
     const taken = await db.appointment.count({
-      where: { date, timeSlot, status: { in: ["PENDING", "CONFIRMED"] } },
+      where: { date, timeSlot, type, status: { in: ["PENDING", "CONFIRMED"] } },
     });
     if (taken >= capacity) {
       return badRequest("That slot is fully booked — please choose another time.", {

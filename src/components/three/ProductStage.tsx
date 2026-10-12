@@ -344,10 +344,12 @@ function Scene({
   categorySlug,
   material,
   reduced,
+  spin,
 }: {
   categorySlug: string;
   material: string;
   reduced: boolean;
+  spin: boolean;
 }) {
   const metal = metalTone(material);
   const gem = gemTone(material);
@@ -404,7 +406,7 @@ function Scene({
         minPolarAngle={Math.PI * 0.15}
         maxPolarAngle={Math.PI * 0.85}
         autoRotate={!reduced}
-        autoRotateSpeed={1.1}
+        autoRotateSpeed={spin && !reduced ? 6.5 : 1.1}
       />
     </>
   );
@@ -482,6 +484,7 @@ export function ProductStage({
   image,
   name,
   captureRef,
+  spin = false,
   className,
 }: {
   categorySlug: string;
@@ -490,6 +493,8 @@ export function ProductStage({
   name: string;
   /** When provided, the parent can call `.current()` to snapshot the canvas as a PNG data URL. */
   captureRef?: React.RefObject<(() => string) | null>;
+  /** 360° showcase mode — the turntable spins briskly for a full view of the piece. */
+  spin?: boolean;
   className?: string;
 }) {
   const holder = useRef<HTMLDivElement>(null);
@@ -531,7 +536,7 @@ export function ProductStage({
             frameloop={reduced ? "demand" : "always"}
             style={{ background: "transparent", touchAction: "none" }}
           >
-            <Scene categorySlug={categorySlug} material={material} reduced={reduced} />
+            <Scene categorySlug={categorySlug} material={material} reduced={reduced} spin={spin} />
             {captureRef && <CaptureBridge captureRef={captureRef} />}
           </Canvas>
         </StageErrorBoundary>

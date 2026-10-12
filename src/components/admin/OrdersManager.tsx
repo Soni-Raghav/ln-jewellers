@@ -42,7 +42,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { OrderDTO, Paginated } from "@/lib/types";
-import { formatINR, formatDate } from "@/lib/format";
+import { formatINR, formatDate, engravingFontLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ORDER_STATUSES, PAYMENT_STATUSES, api, errMsg, humanize, isAuthError, qs, useDebounced } from "./api";
 
@@ -492,6 +492,7 @@ export default function OrdersManager() {
                           <p className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-[#D4AF37]/50 bg-[#D4AF37]/10 px-2 py-0.5 text-[10px] text-[#7A5E14]">
                             <PenLine className="size-2.5 shrink-0" aria-hidden />
                             <span className="truncate font-serif italic tracking-wider">“{it.engravingText}”</span>
+                            <span className="shrink-0 rounded-full bg-[#D4AF37]/20 px-1.5 text-[9px] uppercase tracking-wider">{engravingFontLabel(it.engravingFont)}</span>
                           </p>
                         )}
                       </div>

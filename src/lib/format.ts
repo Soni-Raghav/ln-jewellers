@@ -1,4 +1,4 @@
-import type { CartItem, Product, StoreSettingsDTO } from "@/lib/types";
+import type { CartItem, EngravingFont, Product, StoreSettingsDTO } from "@/lib/types";
 
 // ---------- Formatting ----------
 export function formatINR(amount: number): string {
@@ -7,6 +7,39 @@ export function formatINR(amount: number): string {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+// ---------- Engraving lettering styles ----------
+// The karigar offers three hands. Script maps to system cursive faces so no
+// webfont/network dependency is introduced (graceful fallback to `cursive`).
+export const ENGRAVING_FONTS: Record<EngravingFont, { label: string; wa: string; sample: string; className: string; style?: React.CSSProperties }> = {
+  SERIF: {
+    label: "Classic Serif",
+    wa: "classic serif",
+    sample: "Aa",
+    className: "font-serif italic uppercase tracking-[0.2em]",
+  },
+  SCRIPT: {
+    label: "Elegant Script",
+    wa: "elegant script",
+    sample: "Aa",
+    className: "text-xl",
+    style: { fontFamily: "'Snell Roundhand', 'Savoye LET', 'Apple Chancery', 'Segoe Script', 'Brush Script MT', cursive" },
+  },
+  SANS: {
+    label: "Modern Sans",
+    wa: "modern sans",
+    sample: "Aa",
+    className: "font-sans uppercase tracking-[0.3em]",
+  },
+};
+
+export const ENGRAVING_FONT_ORDER: EngravingFont[] = ["SERIF", "SCRIPT", "SANS"];
+
+/** Human label for a stored font value — unknown/legacy values fall back to classic serif. */
+export function engravingFontLabel(font: string | null | undefined): string {
+  const key = (font as EngravingFont) ?? "SERIF";
+  return ENGRAVING_FONTS[key]?.label ?? ENGRAVING_FONTS.SERIF.label;
 }
 
 export function formatDate(iso: string | Date): string {
@@ -81,6 +114,7 @@ type WaTotals = {
   giftMessage?: string | null;
   engravingText?: string | null; // legacy order-level inscription
   engravingFee?: number;
+  engravingFont?: string | null;
 };
 
 function waTotalsLines(totals: WaTotals): string[] {
@@ -97,7 +131,7 @@ function waTotalsLines(totals: WaTotals): string[] {
     lines.push(`Signature gift wrap: ${formatINR(totals.giftWrapFee)}`);
   }
   if (totals.engravingText && totals.engravingFee && totals.engravingFee > 0) {
-    lines.push(`Engraving ("${totals.engravingText}"): ${formatINR(totals.engravingFee)}`);
+    lines.push(`Engraving ("${totals.engravingText}" in ${engravingFontLabel(totals.engravingFont).toLowerCase()}): ${formatINR(totals.engravingFee)}`);
   } else if (!totals.engravingText && totals.engravingFee && totals.engravingFee > 0) {
     lines.push(`Hand engraving (per piece, as listed): ${formatINR(totals.engravingFee)}`);
   }
@@ -147,7 +181,8 @@ export function waOrderMessage(
   items.forEach((it, i) => {
     const variant = it.variantName ? ` (${it.variantName})` : "";
     lines.push(`${i + 1}. ${it.name}${variant} × ${it.quantity} — ${formatINR(netPrice(it.unitPrice, it.discountPercent) * it.quantity)}`);
-    if (it.engravingText) lines.push(`   ↳ engrave: “${it.engravingText}”`);
+    if (it.engravingText)
+      lines.push(`   ↳ engrave: “${it.engravingText}” in ${engravingFontLabel(it.engravingFont).toLowerCase()}`);
   });
   lines.push(
     ``,

@@ -32,7 +32,12 @@ export async function GET() {
 
     for (const o of orders) {
       const itemSummary = o.items
-        .map((i) => `${i.sku}${i.variantName ? ` (${i.variantName})` : ""}${i.engravingText ? ` [engrave: ${i.engravingText}]` : ""} x${i.quantity}`)
+        .map(
+          (i) =>
+            `${i.sku}${i.variantName ? ` (${i.variantName})` : ""}${
+              i.engravingText ? ` [engrave: ${i.engravingText}${i.engravingFont && i.engravingFont !== "SERIF" ? ` · ${i.engravingFont.toLowerCase()}` : ""}]` : ""
+            } x${i.quantity}`
+        )
         .join(" | ");
       rows.push(
         [
