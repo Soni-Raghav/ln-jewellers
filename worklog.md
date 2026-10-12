@@ -263,3 +263,40 @@ Stage Summary:
 - Decisions: (1) StockAlert is product-level not variant-level (concierge re-crafts whole piece; variant OOS shows sold chips already); (2) re-subscribing same email resets notified so next restock re-pings; (3) coupons exposed publicly are filtered to active+unexpired+non-exhausted and marketing-safe fields only; (4) duplicate prefill keeps stock + variants (editable), clears SKU/slug, forces DRAFT; (5) attach rates exclude CANCELLED so the denominator is meaningful.
 - Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged since round 3)
 - Next suggestions: (1) order-confirmation + restock emails need SMTP creds; (2) "email all notified-pending requesters" bulk action when SMTP lands; (3) shop grid "notify me" quick chip on OOS cards (currently detail-page only); (4) per-coupon conversion funnel (views->orders) needs analytics events; (5) 360° spin when GLB assets arrive.
+
+---
+Task ID: cron-r7
+Agent: webDevReview agent (round 7)
+Task: Status assessment + agent-browser QA + new features (per-product interactive 3D stage, OOS notify chip on shop cards, customer order-cancellation requests full stack) + styling polish
+
+Work Log:
+- STATUS ASSESSMENT: dev server healthy (GET / 200, /api/health ok); git clean on main @64f86bd; bun run lint 0 errors; tsc clean in src/; reviewed worklog rounds 1-6.
+- QA SWEEP (agent-browser, fresh session): home 3D hero, shop grid/search, product detail (variants/size guide/Q&A/reviews), track order, admin session persisted + all tabs — zero console/page errors, no regressions. Search dialog w/ live suggestions + RecentlyViewed + related products confirmed ALREADY EXISTING (skipped as feature candidates).
+- NEW FEATURE — ProductStage: interactive "View in 3D" on the product page (FULL 3D, master-prompt flagship):
+  * New src/components/three/ProductStage.tsx — fully procedural per-category jewellery models from primitives (NO GLB/network): rings (band + engraved accents + bezel + faceted gem + 4 prongs), earrings (jhumka pair: stud + gem + link + flared DoubleSide bell + 8-bead rim + pearl drops), necklaces (chain loop + sway animation + bail + faceted drop), bracelets-bangles (stacked trio w/ filigree overlays + gems).
+  * Metal + gem colours derived from the product's own material string (rose/white/silver → tinted golds; ruby/emerald/sapphire/pearl/diamond → gem tones; diamonds+pearls use a "pale" PBR path: low emissive, high clearcoat).
+  * Interaction: drei OrbitControls (drag rotate, scroll/pinch zoom, damping, polar clamps, slow autoRotate) — drag E2E-verified via mouse (before/after screenshots differ).
+  * Full resilience contract mirrors JewelHero: WebGL probe → photo fallback panel, prefers-reduced-motion → frameloop "demand" + no auto-rotate/float/sparkles, runtime error boundary → photo fallback, lazy IntersectionObserver mount.
+  * Per-category framing table (camera z / orbit target y / shadow floor y) — fixed earrings over-zoom + necklace pendant touching the shadow plane.
+  * ProductView gallery: segmented "Photographs | View in 3D" tablist switch; 3D stage chrome = gold "3D ATELIER VIEW" badge + "Drag to rotate · scroll to zoom" pill + inset gold vignette on black stage; mode resets to photos on slug change; hover-loupe zoom handlers disabled in 3D mode. VERIFIED on all 4 categories (screenshots) + mobile 390px.
+- NEW FEATURE — "Notify me" chip on out-of-stock ProductCards:
+  * Extracted shared src/components/storefront/NotifyMeDialog.tsx (was inline in ProductView; ProductView now imports it).
+  * OOS cards replace disabled "Unavailable" with a gold "Notify me" button (stopPropagation, opens dialog); OOS veil restyled to warm black gradient + champagne "SOLD / Crafted to order" chip.
+  * E2E: zeroed Surya ring + 4 variants via inventory API (negative-stock guard respected) → card shows SOLD + Notify me → dialog submit → toast → StockAlert row in DB → stock fully restored to original [6 / 0,2,1,1].
+- NEW FEATURE — Customer order-cancellation requests (FULL STACK):
+  * prisma: Order.cancelRequested Boolean + cancelReason String? + cancelRequestedAt DateTime?; db:push + prisma generate + dev server restart.
+  * POST /api/orders/[number]/cancel-request (public; rate-limit 5/30min per IP; requires order number + matching email — same trust model as tracking; only PLACED/CONFIRMED/IN_PRODUCTION; rejects shipped/cancelled; reason sanitized ≤300 chars, field-level validation error).
+  * GET /api/orders/[number] returns the 3 new fields; OrderDTO + TrackOrder local interface extended.
+  * Admin PATCH /api/admin/orders/[id]: accepts cancelRequested:false (decline → clears flag+reason+time, audit ORDER_UPDATE w/ declineRequest marker); approving via status→CANCELLED now audits ORDER_CANCEL_APPROVED incl. customerReason; data typed Prisma.OrderUpdateInput.
+  * TrackOrderView: amber "Cancellation requested" banner (reason + date + concierge copy), "Request cancellation" button when eligible → dialog (reason textarea, keep-order option), optimistic UI update. E2E VERIFIED: request submitted → banner live → screenshot.
+  * OrdersManager: pulsing amber dot on order number when requested; detail dialog amber callout w/ reason + "Approve & cancel" (reuses restock confirm) + "Keep order (decline)". E2E VERIFIED: decline cleared DB flags; approve (2nd request) → status CANCELLED + stock 9→10 + last AuditLog = ORDER_CANCEL_APPROVED.
+- STYLING POLISH: 3D stage gold-vignette chrome + black backdrop; refined SOLD veil on cards; gold segmented view-mode toggle; amber cancellation banners/callouts consistent storefront↔admin.
+- BUGS/GETCHAS: (1) bg-[#0A0A0A] class lost to bg-white cascade → replaced w/ inline style; (2) react-hooks/static-components rejected <Piece/> → createElement(pickModel(...)) pattern; (3) STALE PRISMA CLIENT gotcha AGAIN (POST cancel-request 500 "Unknown argument cancelRequested" until explicit bunx prisma generate + server restart — documented r3/r5, still recurring); (4) badRequest()'s 2nd arg is the fields record itself, not {fields:{...}}.
+- bun run lint → 0 errors 0 warnings; bunx tsc --noEmit → clean in src/; dev.log clean; committed 1d1d2c2 on main (NOT pushed — still no GitHub credentials). Screenshots in download/r7-*.png.
+
+Stage Summary:
+- Files created: src/components/three/ProductStage.tsx, src/components/storefront/NotifyMeDialog.tsx, src/app/api/orders/[number]/cancel-request/route.ts
+- Files modified: prisma/schema.prisma, src/lib/types.ts, src/app/api/orders/[number]/route.ts, src/app/api/admin/orders/[id]/route.ts, src/components/storefront/{ProductView,TrackOrderView}.tsx, src/components/home/ProductCard.tsx, src/components/admin/OrdersManager.tsx
+- Decisions: (1) procedural geometry per category keeps the zero-asset contract (no GLBs) while honouring the master prompt's "interactively rotatable 3D on products"; (2) material-derived tints make each product's stage feel bespoke without per-product modelling; (3) cancellation is request-then-concierge (not self-serve cancel) — matches a high-touch jewellery brand and reuses the existing restock-on-cancel transaction; (4) cancelling an order keeps cancelRequested=true as a historical record (UI hides the callout when CANCELLED).
+- Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged since round 3)
+- Next suggestions: (1) emails (order confirmation, cancel-approved, restock) still need SMTP creds; (2) "email all pending stock-alert requesters" bulk action when SMTP lands; (3) shareable 3D stage snapshot (canvas.toDataURL → WhatsApp/image download); (4) per-item engraving selection for multi-item orders; (5) 360° auto-spin capture mode for the 3D stage (record orbit → webm/gif for social).
