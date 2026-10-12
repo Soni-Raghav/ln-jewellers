@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ AUTH / USERS ============
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("CUSTOMER") // CUSTOMER | ADMIN
+  phone        String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ============ CATALOG ============
+
+model Category {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  tagline   String?
+  image     String?
+  order     Int       @default(0)
+  active    Boolean   @default(true)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Collection {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  story     String?
+  image     String?
+  featured  Boolean   @default(false)
+  active    Boolean   @default(true)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id                String              @id @default(cuid())
+  sku               String              @unique
+  slug              String              @unique
+  name              String
+  shortDescription  String?
+  description       String
+  price             Float
+  discountPercent   Float               @default(0)
+  categoryId        String
+  category          Category            @relation(fields: [categoryId], references: [id])
+  collectionId      String?
+  collection        Collection?         @relation(fields: [collectionId], references: [id])
+  images            String              @default("[]") // JSON array of image urls
+  model3dUrl        String? // optional GLB/GLTF url
+  material          String              @default("22K Gold")
+  purity            String?
+  color             String?
+  weightGrams       Float?
+  dimensions        String?
+  stock             Int                 @default(0)
+  lowStockThreshold Int                 @default(3)
+  trackInventory    Boolean             @default(true)
+  featured          Boolean             @default(false)
+  bestSeller        Boolean             @default(false)
+  trending          Boolean             @default(false)
+  handmade          Boolean             @default(false)
+  readyToShip       Boolean             @default(true)
+  craftsmanship     String?
+  careInstructions  String?
+  status            String              @default("PUBLISHED") // PUBLISHED | DRAFT | ARCHIVED
+  tags              String              @default("[]") // JSON array of strings
+  salesCount        Int                 @default(0)
+  variants          ProductVariant[]
+  reviews           Review[]
+  movements         InventoryMovement[]
+  orderItems        OrderItem[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([status, featured])
+  @@index([status, bestSeller])
+  @@index([status, trending])
+  @@index([status, handmade])
+  @@index([categoryId])
+  @@index([collectionId])
+  @@index([createdAt])
+}
+
+model ProductVariant {
+  id         String              @id @default(cuid())
+  productId  String
+  product    Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name       String // e.g. "Size 7" / "16 inch"
+  size       String?
+  color      String?
+  priceDelta Float               @default(0)
+  stock      Int                 @default(0)
+  active     Boolean             @default(true)
+  orderItems OrderItem[]
+  movements  InventoryMovement[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@index([productId])
+}
+
+// ============ INVENTORY ============
+
+model InventoryMovement {
+  id        String          @id @default(cuid())
+  productId String
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+  delta     Int
+  reason    String // INIT | ORDER | CANCEL | RESTOCK | MANUAL_ADJUST | RETURN
+  note      String?
+  actor     String?
+  createdAt DateTime        @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+}
+
+// ============ ORDERS / PAYMENTS ============
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique
+  customerName  String
+  email         String
+  phone         String
+  address       String
+  city          String
+  state         String
+  pincode       String
+  notes         String?
+  items         OrderItem[]
+  subtotal      Float
+  discount      Float       @default(0)
+  shipping      Float       @default(0)
+  tax           Float       @default(0)
+  total         Float
+  status        String      @default("PLACED") // PLACED | CONFIRMED | IN_PRODUCTION | SHIPPED | DELIVERED | CANCELLED
+  paymentMethod String      @default("WHATSAPP") // WHATSAPP | RAZORPAY
+  paymentStatus String      @default("UNPAID") // UNPAID | PAID | REFUNDED
+  payments      Payment[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          String          @id @default(cuid())
+  orderId     String
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product         @relation(fields: [productId], references: [id])
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+  name        String
+  sku         String
+  variantName String?
+  image       String?
+  unitPrice   Float
+  quantity    Int
+  lineTotal   Float
+  createdAt   DateTime        @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider          String   @default("RAZORPAY")
+  providerOrderId   String?
+  providerPaymentId String?
+  signature         String?
+  amount            Float
+  currency          String   @default("INR")
+  status            String   @default("CREATED") // CREATED | PAID | FAILED | VERIFIED
+  rawPayload        String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([orderId])
+}
+
+// ============ ENGAGEMENT ============
+
+model ContactInquiry {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("NEW") // NEW | IN_PROGRESS | RESOLVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  rating    Int // 1..5
+  title     String?
+  comment   String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([productId, approved])
+}
+
+// ============ SETTINGS / AUDIT ============
+
+model StoreSettings {
+  id               String   @id @default("singleton")
+  brandName        String   @default("Aurelia Jewels")
+  tagline          String   @default("Handcrafted Luxury Jewelry")
+  whatsappNumber   String   @default("919876543210")
+  email            String   @default("hello@aureliajewels.com")
+  phone            String   @default("+91 98765 43210")
+  address          String   @default("Aurelia Atelier, 12 Heritage Lane, Johari Bazaar, Jaipur 302003, Rajasthan, India")
+  businessHours    String   @default("Mon – Sat · 10:00 AM – 7:30 PM IST · Sunday closed")
+  instagramUrl     String   @default("https://instagram.com/aureliajewels")
+  facebookUrl      String   @default("https://facebook.com/aureliajewels")
+  pinterestUrl     String   @default("https://pinterest.com/aureliajewels")
+  youtubeUrl       String   @default("")
+  shippingFee      Float    @default(199)
+  freeShippingAbove Float   @default(50000)
+  taxRatePercent   Float    @default(3)
+  aboutStory       String   @default("")
+  missionVision    String   @default("")
+  shippingPolicy   String   @default("")
+  returnsPolicy    String   @default("")
+  privacyPolicy    String   @default("")
+  termsPolicy      String   @default("")
+  faq              String   @default("[]") // JSON [{q, a}]
+  instagramGallery String   @default("[]") // JSON [image urls]
+  testimonials     String   @default("[]") // JSON [{name, location, text, rating}]
+  razorpayEnabled  Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String // e.g. PRODUCT_CREATE, STOCK_ADJUST, ORDER_STATUS
+  entity    String
+  entityId  String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity])
+}

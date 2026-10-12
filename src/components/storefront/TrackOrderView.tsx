@@ -1,0 +1,182 @@
+"use client";
+
+import { useState } from "react";
+import { useApp } from "@/lib/store";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home } from "lucide-react";
+import { formatINR, formatDate } from "@/lib/format";
+
+interface TrackedOrder {
+  orderNumber: string;
+  customerName: string;
+  status: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  subtotal: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  createdAt: string;
+  items: { name: string; sku: string; variantName: string | null; image: string | null; quantity: number; lineTotal: number }[];
+}
+
+const STAGES = [
+  { key: "PLACED", label: "Order placed", icon: CheckCircle2 },
+  { key: "CONFIRMED", label: "Confirmed", icon: Circle },
+  { key: "IN_PRODUCTION", label: "In production", icon: Factory },
+  { key: "SHIPPED", label: "Shipped", icon: Truck },
+  { key: "DELIVERED", label: "Delivered", icon: Home },
+];
+
+export default function TrackOrderView() {
+  const navigate = useApp((s) => s.navigate);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const [order, setOrder] = useState<TrackedOrder | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const track = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!orderNumber.trim() || !email.trim()) {
+      setError("Please enter both your order number and email");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setOrder(null);
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderNumber.trim().toUpperCase())}?email=${encodeURIComponent(email.trim())}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Order not found");
+        return;
+      }
+      setOrder(data.order);
+    } catch {
+      setError("Network error — please try again");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stageIdx = order ? Math.max(0, STAGES.findIndex((s) => s.key === order.status)) : -1;
+  const cancelled = order?.status === "CANCELLED";
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 pb-24 pt-28 sm:px-6">
+      <header className="mb-10 text-center">
+        <p className="text-[11px] uppercase tracking-[0.35em] text-[#A8862A]">Where is my jewelry?</p>
+        <h1 className="mt-2 font-serif text-4xl">Track Your Order</h1>
+      </header>
+
+      <form onSubmit={track} className="rounded-xl border border-[#D4AF37]/25 bg-white p-6 sm:p-8">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Order number</Label>
+            <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="AUR-20250101-XXXXX" className="border-[#D4AF37]/40 bg-[#FAF7F0] uppercase" />
+          </div>
+          <div>
+            <Label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">Email used at checkout</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="border-[#D4AF37]/40 bg-[#FAF7F0]" />
+          </div>
+        </div>
+        {error && <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+        <Button type="submit" disabled={loading} className="mt-5 h-12 w-full bg-[#0A0A0A] text-[#FAF7F0] hover:bg-[#171717]">
+          {loading ? "Looking for your order…" : "Track order"}
+        </Button>
+      </form>
+
+      {loading && (
+        <div className="mt-8 space-y-3">
+          <Skeleton className="h-4 w-2/3 bg-muted" />
+          <Skeleton className="h-20 w-full bg-muted" />
+          <Skeleton className="h-20 w-full bg-muted" />
+        </div>
+      )}
+
+      {order && (
+        <section className="mt-8 rounded-xl border border-[#D4AF37]/25 bg-white p-6 sm:p-8" aria-label="Order details">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-2xl">{order.orderNumber}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Placed on {formatDate(order.createdAt)} · {order.paymentMethod === "WHATSAPP" ? "WhatsApp checkout" : "Online payment"}</p>
+            </div>
+            <span className={`rounded-full px-3.5 py-1.5 text-xs font-medium uppercase tracking-widest ${
+              cancelled ? "bg-destructive/10 text-destructive" : "bg-[#D4AF37]/15 text-[#7a611f]"
+            }`}>
+              {order.status.replace("_", " ")} · {order.paymentStatus}
+            </span>
+          </div>
+
+          {/* timeline */}
+          {!cancelled && (
+            <ol className="mt-8 flex items-start justify-between">
+              {STAGES.map((s, i) => {
+                const done = i <= stageIdx;
+                const active = i === stageIdx;
+                return (
+                  <li key={s.key} className="relative flex flex-1 flex-col items-center text-center">
+                    {i > 0 && (
+                      <span className={`absolute right-1/2 top-5 h-0.5 w-full ${i <= stageIdx ? "bg-[#D4AF37]" : "bg-border"}`} aria-hidden />
+                    )}
+                    <span className={`relative z-10 grid h-10 w-10 place-items-center rounded-full border-2 ${
+                      done ? "border-[#D4AF37] bg-[#D4AF37] text-black" : "border-border bg-white text-muted-foreground"
+                    } ${active && i === stageIdx ? "ring-4 ring-[#D4AF37]/25" : ""}`}>
+                      <s.icon className={`h-4 w-4 ${done && s.key === "PLACED" ? "fill-black/0" : ""}`} strokeWidth={1.8} />
+                    </span>
+                    <span className={`mt-2 text-[11px] ${done ? "font-medium text-foreground" : "text-muted-foreground"}`}>{s.label}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          {cancelled && (
+            <p className="mt-6 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              This order was cancelled. If you were charged, our team will confirm your refund via WhatsApp.
+            </p>
+          )}
+
+          <div className="mt-8 space-y-3">
+            {order.items.map((i, idx) => (
+              <div key={idx} className="flex items-center gap-3 rounded-lg border border-border/60 p-3">
+                { }
+                <img src={i.image || "/images/brand/atelier.png"} alt={i.name} className="h-14 w-14 rounded-md border border-border object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{i.name}</p>
+                  <p className="text-xs text-muted-foreground">{i.sku}{i.variantName ? ` · ${i.variantName}` : ""} · Qty {i.quantity}</p>
+                </div>
+                <p className="text-sm font-medium">{formatINR(i.lineTotal)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 space-y-1.5 border-t border-border pt-4 text-sm">
+            <p className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{formatINR(order.subtotal)}</span></p>
+            <p className="flex justify-between text-muted-foreground"><span>Shipping</span><span>{order.shipping === 0 ? "Free" : formatINR(order.shipping)}</span></p>
+            <p className="flex justify-between text-muted-foreground"><span>GST</span><span>{formatINR(order.tax)}</span></p>
+            <p className="flex justify-between text-base font-medium"><span>Total</span><span className="font-serif text-lg">{formatINR(order.total)}</span></p>
+          </div>
+          <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" /> Questions about this order? Message us on WhatsApp — concierge replies within business hours.
+          </p>
+        </section>
+      )}
+
+      {!order && !loading && (
+        <div className="mt-8 rounded-xl border border-dashed border-[#D4AF37]/30 bg-white/50 p-6 text-center text-sm text-muted-foreground">
+          <PackageSearch className="mx-auto mb-2 h-6 w-6 text-[#D4AF37]" />
+          Your order number is in the confirmation shown after checkout (it starts with <span className="font-mono">AUR-</span>).
+        </div>
+      )}
+
+      <div className="mt-8 text-center">
+        <Button variant="ghost" onClick={() => navigate("contact")} className="text-[#A8862A] hover:bg-[#D4AF37]/10">
+          Can&apos;t find your order? Contact us
+        </Button>
+      </div>
+    </div>
+  );
+}

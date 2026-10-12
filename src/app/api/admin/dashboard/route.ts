@@ -1,0 +1,80 @@
+import { db } from "@/lib/db";
+import { handle, ok, unauthorized } from "@/lib/api-utils";
+import { requireAdmin } from "@/lib/auth";
+
+export async function GET() {
+  return handle(async () => {
+    const admin = await requireAdmin();
+    if (!admin) return unauthorized();
+
+    const [totalProducts, publishedProducts, orders, inquiries, subscribers, pendingReviews, paidOrders] =
+      await Promise.all([
+        db.product.count(),
+        db.product.count({ where: { status: "PUBLISHED" } }),
+        db.order.findMany({ orderBy: { createdAt: "desc" }, take: 300, include: { items: true } }),
+        db.contactInquiry.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
+        db.newsletterSubscriber.count({ where: { active: true } }),
+        db.review.count({ where: { approved: false } }),
+        db.order.findMany({ where: { paymentStatus: "PAID" }, select: { total: true } }),
+      ]);
+
+    const products = await db.product.findMany({
+      where: { status: { not: "ARCHIVED" } },
+      select: { id: true, name: true, sku: true, stock: true, lowStockThreshold: true, trackInventory: true },
+    });
+
+    const variantStocks = await db.productVariant.aggregate({ _sum: { stock: true } });
+    const productStockSum = await db.product.aggregate({ _sum: { stock: true } });
+
+    const lowStock = products
+      .filter((p) => p.trackInventory && p.stock > 0 && p.stock <= p.lowStockThreshold)
+      .map((p) => ({ id: p.id, name: p.name, sku: p.sku, stock: p.stock, lowStockThreshold: p.lowStockThreshold }));
+    const outOfStock = products
+      .filter((p) => p.trackInventory && p.stock <= 0)
+      .map((p) => ({ id: p.id, name: p.name, sku: p.sku }));
+
+    const topSold = await db.product.findMany({
+      orderBy: { salesCount: "desc" },
+      take: 5,
+      select: { id: true, name: true, salesCount: true },
+    });
+
+    const revenue = paidOrders.reduce((n, o) => n + o.total, 0);
+    const pendingOrders = orders.filter((o) => ["PLACED", "CONFIRMED", "IN_PRODUCTION"].includes(o.status)).length;
+
+    return ok({
+      totalProducts,
+      publishedProducts,
+      totalInventoryUnits: (productStockSum._sum.stock ?? 0) + (variantStocks._sum.stock ?? 0),
+      lowStock,
+      outOfStock,
+      totalOrders: orders.length,
+      pendingOrders,
+      revenue,
+      newInquiries: await db.contactInquiry.count({ where: { status: "NEW" } }),
+      subscribers,
+      pendingReviews,
+      recentOrders: orders.slice(0, 8).map((o) => ({
+        id: o.id,
+        orderNumber: o.orderNumber,
+        customerName: o.customerName,
+        email: o.email,
+        total: o.total,
+        status: o.status,
+        paymentStatus: o.paymentStatus,
+        paymentMethod: o.paymentMethod,
+        itemCount: o.items.length,
+        createdAt: o.createdAt,
+      })),
+      recentInquiries: inquiries.map((i) => ({
+        id: i.id,
+        name: i.name,
+        email: i.email,
+        subject: i.subject,
+        status: i.status,
+        createdAt: i.createdAt,
+      })),
+      topProducts: topSold.map((p) => ({ id: p.id, name: p.name, sold: p.salesCount })),
+    });
+  });
+}

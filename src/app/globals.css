@@ -1,0 +1,214 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-jost), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-gold: var(--gold);
+  --color-gold-champagne: var(--gold-champagne);
+  --color-gold-deep: var(--gold-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ivory: var(--ivory);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ---------- Aurelia Jewels — golden luxury light theme ---------- */
+:root {
+  --radius: 0.375rem;
+
+  /* Brand palette */
+  --gold: #d4af37;
+  --gold-champagne: #e6c87a;
+  --gold-deep: #a8862a;
+  --ink: #0a0a0a;
+  --ink-soft: #171717;
+  --ivory: #faf7f0;
+
+  --background: #faf7f0; /* ivory */
+  --foreground: #141210;
+  --card: #ffffff;
+  --card-foreground: #141210;
+  --popover: #ffffff;
+  --popover-foreground: #141210;
+  --primary: #0a0a0a; /* charcoal CTA */
+  --primary-foreground: #faf7f0;
+  --secondary: #f1ead9;
+  --secondary-foreground: #141210;
+  --muted: #f3eee3;
+  --muted-foreground: #6d6455;
+  --accent: #f6efdd;
+  --accent-foreground: #141210;
+  --destructive: #b3261e;
+  --border: #e5ddca;
+  --input: #ddd4bf;
+  --ring: #d4af37;
+  --chart-1: #d4af37;
+  --chart-2: #a8862a;
+  --chart-3: #e6c87a;
+  --chart-4: #6d5c28;
+  --chart-5: #171717;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #f5efe0;
+  --sidebar-primary: #d4af37;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #1f1c17;
+  --sidebar-accent-foreground: #f5efe0;
+  --sidebar-border: #2a2620;
+  --sidebar-ring: #d4af37;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #f5efe0;
+  --card: #171717;
+  --card-foreground: #f5efe0;
+  --popover: #171717;
+  --popover-foreground: #f5efe0;
+  --primary: #d4af37;
+  --primary-foreground: #0a0a0a;
+  --secondary: #1f1c17;
+  --secondary-foreground: #f5efe0;
+  --muted: #1c1913;
+  --muted-foreground: #a89f8d;
+  --accent: #221e16;
+  --accent-foreground: #f5efe0;
+  --destructive: #e5484d;
+  --border: #2a2620;
+  --input: #2a2620;
+  --ring: #d4af37;
+  --chart-1: #d4af37;
+  --chart-2: #e6c87a;
+  --chart-3: #a8862a;
+  --chart-4: #6d5c28;
+  --chart-5: #f5efe0;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #f5efe0;
+  --sidebar-primary: #d4af37;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #1f1c17;
+  --sidebar-accent-foreground: #f5efe0;
+  --sidebar-border: #2a2620;
+  --sidebar-ring: #d4af37;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01" on;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: #d4af37;
+    color: #0a0a0a;
+  }
+}
+
+@layer utilities {
+  /* Elegant thin scrollbar */
+  .scrollbar-elegant {
+    scrollbar-width: thin;
+    scrollbar-color: #d4af37 / 40 transparent;
+  }
+  .scrollbar-elegant::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-elegant::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-elegant::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, #d4af37 45%, transparent);
+    border-radius: 999px;
+  }
+  .scrollbar-elegant::-webkit-scrollbar-thumb:hover {
+    background: #d4af37;
+  }
+
+  /* Gold text gradient for display headlines */
+  .text-gold-gradient {
+    background: linear-gradient(115deg, #a8862a 0%, #d4af37 35%, #f4e5b0 50%, #d4af37 65%, #a8862a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Fine double keyline used under section headings */
+  .gold-keyline {
+    position: relative;
+  }
+  .gold-keyline::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -10px;
+    transform: translateX(-50%);
+    width: 64px;
+    height: 1px;
+    background: #d4af37;
+  }
+
+  /* Horizontal marquee */
+  @keyframes marquee-x {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  .animate-marquee {
+    animation: marquee-x 32s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee {
+      animation: none;
+    }
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
