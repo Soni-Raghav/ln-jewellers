@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Boxes, Eye, Loader2, Search, Sparkles } from "lucide-react";
+import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -137,18 +137,30 @@ export default function OrdersManager() {
             {data ? `${data.total} order${data.total === 1 ? "" : "s"}` : "Loading orders…"}
           </p>
         </div>
-        <div className="relative lg:w-72">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-[#B0A88F]" aria-hidden />
-          <Input
-            value={qInput}
-            onChange={(e) => {
-              setQInput(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search number, customer, email, phone…"
-            aria-label="Search orders"
-            className="w-full border-[#E0D9C8] bg-white pl-8"
-          />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-[#D4AF37]/50 text-[#7A5E14] hover:bg-[#D4AF37]/10 hover:text-[#7A5E14]"
+            onClick={() => window.open("/api/admin/orders/export", "_blank")}
+            title="Download every order as CSV"
+          >
+            <Download className="mr-2 size-4" aria-hidden />
+            Export CSV
+          </Button>
+          <div className="relative lg:w-72">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-[#B0A88F]" aria-hidden />
+            <Input
+              value={qInput}
+              onChange={(e) => {
+                setQInput(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search number, customer, email, phone…"
+              aria-label="Search orders"
+              className="w-full border-[#E0D9C8] bg-white pl-8"
+            />
+          </div>
         </div>
       </div>
 
@@ -365,6 +377,14 @@ export default function OrdersManager() {
                       Note: {detail.notes}
                     </p>
                   )}
+                  {detail.engravingText && (
+                    <p className="mt-2 flex items-start gap-1.5 rounded border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-2 py-1.5 text-xs text-[#7A5E14]">
+                      <PenLine className="mt-0.5 size-3 shrink-0" aria-hidden />
+                      <span>
+                        Engrave: <span className="font-serif italic tracking-wider">“{detail.engravingText}”</span>
+                      </span>
+                    </p>
+                  )}
                 </div>
               </section>
 
@@ -414,6 +434,9 @@ export default function OrdersManager() {
                   <TotalRow label="Shipping" value={detail.shipping === 0 ? "Free" : formatINR(detail.shipping)} />
                   {!!detail.giftWrap && !!detail.giftWrapFee && detail.giftWrapFee > 0 && (
                     <TotalRow label="Signature gift wrap" value={formatINR(detail.giftWrapFee)} gold />
+                  )}
+                  {!!detail.engravingText && !!detail.engravingFee && detail.engravingFee > 0 && (
+                    <TotalRow label={`Engraving “${detail.engravingText}”`} value={formatINR(detail.engravingFee)} gold />
                   )}
                   <TotalRow label="Tax" value={formatINR(detail.tax)} />
                 </div>

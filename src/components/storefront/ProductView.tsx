@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import ProductCard from "@/components/home/ProductCard";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Heart, Share2, Minus, Plus, ShoppingBag, MessageCircle, Truck, RefreshCcw,
-  ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ZoomIn,
+  ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ZoomIn, PenLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate } from "@/lib/format";
@@ -37,6 +37,8 @@ export default function ProductView() {
   const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
   const [variantId, setVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
+  const [stickyBuy, setStickyBuy] = useState(false);
+  const buyBoxRef = useRef<HTMLDivElement | null>(null);
 
   // Magnifier: move the transform-origin with the cursor for a true loupe feel
   const onGalleryMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -89,6 +91,24 @@ export default function ProductView() {
   const maxStock = variant ? variant.stock : product?.stock ?? 0;
   const outOfStock = product ? (variant ? true : product.trackInventory) && maxStock <= 0 : false;
   const wished = product ? wishlist.includes(product.id) : false;
+
+  // Sticky mobile buy bar appears once the main buy box has scrolled past
+  useEffect(() => {
+    if (!product) return;
+    const onScroll = () => {
+      const el = buyBoxRef.current;
+      if (!el) return;
+      setStickyBuy(el.getBoundingClientRect().bottom < 0);
+    };
+    const raf = requestAnimationFrame(onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [product]);
 
   const handleAdd = (thenCheckout = false) => {
     if (!product || outOfStock) return;
@@ -337,7 +357,7 @@ export default function ProductView() {
           )}
 
           {/* qty + actions */}
-          <div className="mt-7 flex flex-wrap items-stretch gap-3">
+          <div ref={buyBoxRef} className="mt-7 flex flex-wrap items-stretch gap-3">
             <div className="flex items-center rounded-lg border border-[#D4AF37]/40 bg-white">
               <button onClick={() => setQty(Math.max(1, qty - 1))} className="grid h-11 w-10 place-items-center text-muted-foreground hover:text-foreground" aria-label="Decrease quantity">
                 <Minus className="h-4 w-4" />
@@ -373,6 +393,13 @@ export default function ProductView() {
               <Share2 className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* engraving hint */}
+          {settings?.engravingEnabled !== false && !outOfStock && (
+            <p className="mt-3 flex items-center gap-1.5 text-xs text-[#7a611f]">
+              <PenLine className="h-3.5 w-3.5" /> Personalise it — add hand engraving at checkout
+            </p>
+          )}
 
           {/* whatsapp inquiry */}
           {settings && (
@@ -504,6 +531,32 @@ export default function ProductView() {
         <Button variant="ghost" onClick={() => navigate("shop")} className="text-[#A8862A]">
           <ChevronLeft className="mr-1 h-4 w-4" /> Back to shop
         </Button>
+      </div>
+
+      {/* sticky mobile buy bar — appears once the main buy box scrolls past */}
+      <div
+        className={`fixed inset-x-0 bottom-0 z-30 border-t border-[#D4AF37]/30 bg-white/95 shadow-[0_-6px_24px_rgba(10,10,10,0.08)] backdrop-blur transition-transform duration-300 lg:hidden ${
+          stickyBuy ? "translate-y-0" : "pointer-events-none translate-y-full"
+        }`}
+        aria-hidden={!stickyBuy}
+      >
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+          <img src={product.images?.[0] || "/images/brand/atelier.png"} alt="" className="h-11 w-11 shrink-0 rounded-md border border-border object-cover" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{product.name}</p>
+            <p className="text-sm font-semibold text-[#7a611f]">
+              {formatINR(display)}
+              {variant ? <span className="font-normal text-muted-foreground"> · {variant.name}</span> : null}
+            </p>
+          </div>
+          <Button
+            onClick={() => handleAdd(false)}
+            disabled={outOfStock}
+            className="mr-14 h-11 shrink-0 bg-[#0A0A0A] px-5 text-[#FAF7F0] hover:bg-[#171717] active:scale-[0.97]"
+          >
+            <ShoppingBag className="mr-1.5 h-4 w-4" /> {outOfStock ? "Sold out" : "Add to bag"}
+          </Button>
+        </div>
       </div>
     </div>
   );

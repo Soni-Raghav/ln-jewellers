@@ -35,6 +35,7 @@ export async function POST(req: Request) {
     const pincode = sanitize(body.pincode).slice(0, 10);
     const notes = sanitize(body.notes).slice(0, 500);
     const giftWrap = !!body.giftWrap;
+    const engravingText = sanitize(body.engravingText).slice(0, 60);
     const paymentMethod = body.paymentMethod === "RAZORPAY" ? "RAZORPAY" : "WHATSAPP";
     const couponCodeRaw = sanitize(body.couponCode).toUpperCase().slice(0, 30);
 
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
     if (!isNonEmpty(city, 80)) fields.city = "City is required";
     if (!isNonEmpty(state, 80)) fields.state = "State is required";
     if (!/^\d{6}$/.test(pincode)) fields.pincode = "6-digit PIN code required";
+    if (engravingText && !/[A-Za-z0-9]/.test(engravingText)) fields.engravingText = "Engraving must contain letters or numbers";
     if (Object.keys(fields).length) return badRequest("Validation failed", fields);
 
     // ---- Load settings for shipping/tax ----
@@ -136,9 +138,12 @@ export async function POST(req: Request) {
 
     const shipping = subtotal >= freeAbove ? 0 : shippingFee;
     const tax = Math.round(((subtotal - couponDiscount) * taxRate) / 100);
-    // Gift wrap fee is controlled by the atelier, never by the client
+    // Gift wrap + engraving fees are controlled by the atelier, never by the client
     const giftWrapFee = giftWrap ? Math.max(0, settings.giftWrapFee ?? 0) : 0;
-    const total = subtotal - couponDiscount + shipping + tax + giftWrapFee;
+    const engravingEnabled = settings.engravingEnabled !== false;
+    const finalEngraving = engravingEnabled ? engravingText : "";
+    const engravingFee = finalEngraving ? Math.max(0, settings.engravingFee ?? 0) : 0;
+    const total = subtotal - couponDiscount + shipping + tax + giftWrapFee + engravingFee;
 
     // ---- Atomic transaction: create order + decrement stock safely ----
     const orderNumber = generateOrderNumber();
@@ -178,6 +183,8 @@ export async function POST(req: Request) {
             couponDiscount,
             giftWrap,
             giftWrapFee,
+            engravingText: finalEngraving || null,
+            engravingFee,
             shipping,
             tax,
             total,
@@ -245,6 +252,8 @@ export async function POST(req: Request) {
           couponDiscount: order.couponDiscount,
           giftWrap: order.giftWrap,
           giftWrapFee: order.giftWrapFee,
+          engravingText: order.engravingText,
+          engravingFee: order.engravingFee,
           shipping: order.shipping,
           tax: order.tax,
           total: order.total,
@@ -262,6 +271,7 @@ export async function POST(req: Request) {
             subtotal: formatINR(order.subtotal),
             shipping: order.shipping === 0 ? "Free" : formatINR(order.shipping),
             giftWrapFee: order.giftWrapFee > 0 ? formatINR(order.giftWrapFee) : "",
+            engravingFee: order.engravingFee > 0 ? formatINR(order.engravingFee) : "",
             tax: formatINR(order.tax),
             total: formatINR(order.total),
           },

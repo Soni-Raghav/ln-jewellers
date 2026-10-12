@@ -64,6 +64,8 @@ type WaTotals = {
   discount?: number;
   giftWrap?: boolean;
   giftWrapFee?: number;
+  engravingText?: string | null;
+  engravingFee?: number;
 };
 
 function waTotalsLines(totals: WaTotals): string[] {
@@ -78,6 +80,9 @@ function waTotalsLines(totals: WaTotals): string[] {
   );
   if (totals.giftWrap && totals.giftWrapFee && totals.giftWrapFee > 0) {
     lines.push(`Signature gift wrap: ${formatINR(totals.giftWrapFee)}`);
+  }
+  if (totals.engravingText && totals.engravingFee && totals.engravingFee > 0) {
+    lines.push(`Engraving ("${totals.engravingText}"): ${formatINR(totals.engravingFee)}`);
   }
   lines.push(
     `GST (${3}%): ${formatINR(totals.tax)}`,
@@ -134,7 +139,7 @@ export function waOrderMessage(
     `${customer.name}, ${customer.phone}`,
     `${customer.address}, ${customer.city}, ${customer.state} – ${customer.pincode}`,
     ``,
-    `Please confirm my order. Thank you!${totals.giftWrap ? " Please include the signature gift wrap." : ""}`
+    `Please confirm my order. Thank you!${totals.giftWrap ? " Please include the signature gift wrap." : ""}${totals.engravingText ? ` Please engrave: \u201c${totals.engravingText}\u201d.` : ""}`
   );
   return waLink(settings.whatsappNumber, lines.join("\n"));
 }

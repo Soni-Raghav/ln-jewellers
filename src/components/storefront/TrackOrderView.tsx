@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home, Printer, Gift } from "lucide-react";
+import { PackageSearch, CheckCircle2, Circle, Clock, Truck, Factory, Home, Printer, Gift, PenLine } from "lucide-react";
 import { formatINR, formatDate } from "@/lib/format";
 
 interface TrackedOrder {
@@ -27,6 +27,8 @@ interface TrackedOrder {
   couponDiscount?: number;
   giftWrap?: boolean;
   giftWrapFee?: number;
+  engravingText?: string | null;
+  engravingFee?: number;
   shipping: number;
   tax: number;
   total: number;
@@ -203,9 +205,17 @@ export default function TrackOrderView() {
             {!!order.giftWrap && !!order.giftWrapFee && order.giftWrapFee > 0 && (
               <p className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1"><Gift className="h-3.5 w-3.5" /> Signature gift wrap</span><span>{formatINR(order.giftWrapFee)}</span></p>
             )}
+            {!!order.engravingText && !!order.engravingFee && order.engravingFee > 0 && (
+              <p className="flex justify-between text-[#7a611f]"><span className="inline-flex items-center gap-1"><PenLine className="h-3.5 w-3.5" /> Engraving “{order.engravingText}”</span><span>{formatINR(order.engravingFee)}</span></p>
+            )}
             <p className="flex justify-between text-muted-foreground"><span>GST</span><span>{formatINR(order.tax)}</span></p>
             <p className="flex justify-between text-base font-medium"><span>Total</span><span className="font-serif text-lg">{formatINR(order.total)}</span></p>
           </div>
+          {order.engravingText && (
+            <p className="mt-3 rounded-lg border border-[#D4AF37]/30 bg-[#D4AF37]/5 px-3 py-2 text-sm text-[#7a611f]">
+              <span className="inline-flex flex-wrap items-center gap-1.5"><PenLine className="h-3.5 w-3.5 shrink-0" /> Hand-engraving request: <span className="font-serif italic tracking-wider">“{order.engravingText}”</span> — our karigar confirms placement before crafting.</span>
+            </p>
+          )}
           <div className="mt-5 flex flex-wrap gap-3 print:hidden">
             <Button
               variant="outline"

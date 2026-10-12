@@ -6,13 +6,22 @@ export async function GET() {
   return handle(async () => {
     const admin = await requireAdmin();
     if (!admin) return unauthorized();
-    const [coupons, savings] = await Promise.all([
+    const [coupons, savings, orderCounts, revenue] = await Promise.all([
       db.coupon.findMany({ orderBy: { createdAt: "desc" } }),
       db.order.groupBy({ by: ["couponCode"], where: { couponCode: { not: null } }, _sum: { couponDiscount: true } }),
+      db.order.groupBy({ by: ["couponCode"], where: { couponCode: { not: null } }, _count: { _all: true } }),
+      db.order.groupBy({ by: ["couponCode"], where: { couponCode: { not: null }, status: { not: "CANCELLED" } }, _sum: { total: true } }),
     ]);
     const grantedMap = new Map(savings.map((s) => [s.couponCode, s._sum.couponDiscount ?? 0]));
+    const countMap = new Map(orderCounts.map((c) => [c.couponCode, c._count._all]));
+    const revenueMap = new Map(revenue.map((r) => [r.couponCode, r._sum.total ?? 0]));
     return ok({
-      items: coupons.map((c) => ({ ...c, granted: grantedMap.get(c.code) ?? 0 })),
+      items: coupons.map((c) => ({
+        ...c,
+        granted: grantedMap.get(c.code) ?? 0,
+        orderCount: countMap.get(c.code) ?? 0,
+        revenue: revenueMap.get(c.code) ?? 0,
+      })),
       activeCount: coupons.filter((c) => c.active).length,
     });
   });

@@ -48,6 +48,8 @@ const DEFAULT_SETTINGS: StoreSettingsDTO = {
   freeShippingAbove: 50000,
   taxRatePercent: 3,
   giftWrapFee: 500,
+  engravingEnabled: true,
+  engravingFee: 1500,
   aboutStory: "",
   missionVision: "",
   shippingPolicy: "",
@@ -103,6 +105,8 @@ export default function SettingsManager() {
         freeShippingAbove: Math.max(0, Number(form.freeShippingAbove) || 0),
         taxRatePercent: Math.min(28, Math.max(0, Number(form.taxRatePercent) || 0)),
         giftWrapFee: Math.max(0, Number(form.giftWrapFee) || 0),
+        engravingEnabled: form.engravingEnabled,
+        engravingFee: Math.max(0, Number(form.engravingFee) || 0),
         faq: faqRows.filter((r) => r.q.trim() || r.a.trim()),
         testimonials: testimonialRows
           .filter((r) => r.name.trim() || r.text.trim())
@@ -320,6 +324,26 @@ export default function SettingsManager() {
                 className="border-[#E0D9C8] bg-white"
               />
               <p className="text-xs text-[#8A8375]">Charged once per order when the shopper adds signature gift wrap.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#5A544A]">Engraving fee (₹)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={form.engravingFee}
+                onChange={(e) => set("engravingFee", Number(e.target.value))}
+                className="border-[#E0D9C8] bg-white"
+              />
+              <p className="text-xs text-[#8A8375]">Charged once per order that requests hand engraving.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch checked={form.engravingEnabled} onCheckedChange={(v) => set("engravingEnabled", v)} aria-label="Enable engraving" />
+              <div>
+                <p className="text-sm font-medium text-[#1C1A16]">Hand engraving</p>
+                <p className="text-xs text-[#8A8375]">
+                  {form.engravingEnabled ? "Offered at checkout." : "Hidden from checkout."}
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-3 sm:col-span-3">
               <Switch checked={form.razorpayEnabled} onCheckedChange={(v) => set("razorpayEnabled", v)} aria-label="Enable Razorpay" />

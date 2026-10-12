@@ -34,6 +34,8 @@ export async function PATCH(req: Request) {
     if (body.freeShippingAbove !== undefined) data.freeShippingAbove = Math.max(0, toFloat(body.freeShippingAbove, 50000));
     if (body.taxRatePercent !== undefined) data.taxRatePercent = Math.min(28, Math.max(0, toFloat(body.taxRatePercent, 3)));
     if (body.giftWrapFee !== undefined) data.giftWrapFee = Math.max(0, toFloat(body.giftWrapFee, 500));
+    if (body.engravingEnabled !== undefined) data.engravingEnabled = !!body.engravingEnabled;
+    if (body.engravingFee !== undefined) data.engravingFee = Math.max(0, toFloat(body.engravingFee, 1500));
     if (body.razorpayEnabled !== undefined) data.razorpayEnabled = !!body.razorpayEnabled;
     if (body.faq !== undefined) {
       const faq = Array.isArray(body.faq)

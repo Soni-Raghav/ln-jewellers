@@ -35,6 +35,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ number: string 
         couponDiscount: order.couponDiscount,
         giftWrap: order.giftWrap,
         giftWrapFee: order.giftWrapFee,
+        engravingText: order.engravingText,
+        engravingFee: order.engravingFee,
         shipping: order.shipping,
         tax: order.tax,
         total: order.total,

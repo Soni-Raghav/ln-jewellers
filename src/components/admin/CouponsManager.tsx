@@ -20,7 +20,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Ticket, Plus, Trash2, Loader2, TicketPercent } from "lucide-react";
+import { Ticket, Plus, Trash2, Loader2, TicketPercent, TrendingUp, BadgeIndianRupee } from "lucide-react";
 import { toast } from "sonner";
 import { api, errMsg } from "./api";
 import { formatINR, formatDate } from "@/lib/format";
@@ -39,6 +39,8 @@ interface Coupon {
   expiresAt: string | null;
   createdAt: string;
   granted?: number;
+  orderCount?: number;
+  revenue?: number;
 }
 
 export default function CouponsManager() {
@@ -130,6 +132,35 @@ export default function CouponsManager() {
           <p className="mt-1 text-sm text-muted-foreground">Create your first launch offer to appear at checkout.</p>
         </div>
       ) : (
+        <div className="space-y-4">
+          {/* analytics summary strip */}
+          {(() => {
+            const totalSavings = coupons.reduce((n, c) => n + (c.granted ?? 0), 0);
+            const totalOrders = coupons.reduce((n, c) => n + (c.orderCount ?? 0), 0);
+            const totalRevenue = coupons.reduce((n, c) => n + (c.revenue ?? 0), 0);
+            const avgBasket = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+            const stats = [
+              { label: "Savings given", value: `−${formatINR(totalSavings)}`, icon: BadgeIndianRupee, tone: "text-[#7A5E14]" },
+              { label: "Coupon orders", value: String(totalOrders), icon: Ticket, tone: "text-[#1C1A16]" },
+              { label: "Revenue influenced", value: formatINR(totalRevenue), icon: TrendingUp, tone: "text-[#1C1A16]" },
+              { label: "Avg. coupon basket", value: formatINR(avgBasket), icon: TicketPercent, tone: "text-[#7A5E14]" },
+            ];
+            return (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {stats.map((s) => (
+                  <div key={s.label} className="rounded-xl border border-[#D4AF37]/25 bg-white p-4 transition-shadow hover:shadow-[0_8px_28px_-14px_rgba(212,175,55,0.55)]">
+                    <div className="flex items-center gap-2">
+                      <span className="grid size-8 place-items-center rounded-full bg-[#D4AF37]/12">
+                        <s.icon className="size-4 text-[#A8862A]" aria-hidden />
+                      </span>
+                      <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#8A8375]">{s.label}</p>
+                    </div>
+                    <p className={`mt-2 font-serif text-2xl ${s.tone}`}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         <div className="overflow-hidden rounded-xl border border-[#D4AF37]/25 bg-white">
           <Table>
             <TableHeader>
@@ -137,6 +168,8 @@ export default function CouponsManager() {
                 <TableHead>Code</TableHead>
                 <TableHead>Discount</TableHead>
                 <TableHead>Min. order</TableHead>
+                <TableHead>Orders</TableHead>
+                <TableHead>Avg. basket</TableHead>
                 <TableHead>Usage</TableHead>
                 <TableHead>Savings given</TableHead>
                 <TableHead>Expires</TableHead>
@@ -159,6 +192,20 @@ export default function CouponsManager() {
                       {c.maxDiscount ? <span className="ml-1 text-xs text-muted-foreground">(cap {formatINR(c.maxDiscount)})</span> : null}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">{c.minSubtotal > 0 ? formatINR(c.minSubtotal) : "—"}</TableCell>
+                    <TableCell className="text-sm tabular-nums">
+                      {(c.orderCount ?? 0) > 0 ? (
+                        <span className="font-medium text-[#1C1A16]" title="Confirmed orders using this code">{c.orderCount}</span>
+                      ) : (
+                        <span className="text-[#B0A88F]">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm tabular-nums">
+                      {(c.orderCount ?? 0) > 0 && (c.revenue ?? 0) > 0 ? (
+                        <span title="Average order total (cancelled orders excluded)">{formatINR(Math.round((c.revenue ?? 0) / (c.orderCount ?? 1)))}</span>
+                      ) : (
+                        <span className="text-[#B0A88F]">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm">
                       {c.usageCount}{c.usageLimit !== null ? ` / ${c.usageLimit}` : ""}
                       {exhausted && <Badge className="ml-2 bg-destructive/15 text-destructive">Limit reached</Badge>}
@@ -205,6 +252,7 @@ export default function CouponsManager() {
               })}
             </TableBody>
           </Table>
+        </div>
         </div>
       )}
     </div>

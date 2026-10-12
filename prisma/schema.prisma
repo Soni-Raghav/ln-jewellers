@@ -161,6 +161,8 @@ model Order {
   couponDiscount Float     @default(0)
   giftWrap      Boolean     @default(false)
   giftWrapFee   Float       @default(0)
+  engravingText String? // personalised inscription requested at checkout
+  engravingFee  Float       @default(0)
   payments      Payment[]
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -283,6 +285,8 @@ model StoreSettings {
   freeShippingAbove Float   @default(50000)
   taxRatePercent   Float    @default(3)
   giftWrapFee      Float    @default(500)
+  engravingEnabled Boolean  @default(true)
+  engravingFee     Float    @default(1500)
   aboutStory       String   @default("")
   missionVision    String   @default("")
   shippingPolicy   String   @default("")

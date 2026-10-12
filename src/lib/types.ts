@@ -134,6 +134,8 @@ export interface OrderDTO {
   couponDiscount?: number;
   giftWrap?: boolean;
   giftWrapFee?: number;
+  engravingText?: string | null;
+  engravingFee?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -154,6 +156,8 @@ export interface StoreSettingsDTO {
   freeShippingAbove: number;
   taxRatePercent: number;
   giftWrapFee: number;
+  engravingEnabled: boolean;
+  engravingFee: number;
   aboutStory: string;
   missionVision: string;
   shippingPolicy: string;
