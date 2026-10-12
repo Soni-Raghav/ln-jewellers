@@ -286,6 +286,25 @@ model StockAlert {
   @@index([productId])
 }
 
+// Private atelier appointments booked from the Contact page.
+model Appointment {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  type      String // STORE_VISIT | VIDEO_CALL
+  date      String // YYYY-MM-DD (atelier works in IST; string keeps the chosen calendar day stable)
+  timeSlot  String // e.g. "11:00 AM"
+  notes     String?
+  status    String   @default("PENDING") // PENDING | CONFIRMED | DECLINED | COMPLETED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([date])
+  @@index([createdAt])
+}
+
 // ============ SETTINGS / AUDIT ============
 
 model StoreSettings {

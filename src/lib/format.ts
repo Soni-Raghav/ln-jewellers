@@ -17,6 +17,20 @@ export function formatDate(iso: string | Date): string {
   });
 }
 
+/** "Mon, 13 Oct 2026" — for appointment books and confirmations. */
+export function formatLongDate(yyyyMmDd: string | Date): string {
+  // Date-only strings must not shift with the local timezone.
+  const d = typeof yyyyMmDd === "string" && /^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd)
+    ? new Date(`${yyyyMmDd}T12:00:00`)
+    : new Date(yyyyMmDd);
+  return d.toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function netPrice(price: number, discountPercent: number): number {
   const d = Math.min(Math.max(discountPercent, 0), 90);
   return Math.round(price * (1 - d / 100));

@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, Phone, MapPin, Clock, MessageCircle, Send, CheckCircle2, type LucideIcon } from "lucide-react";
 import { waGeneralInquiry } from "@/lib/format";
+import AppointmentBooking from "./AppointmentBooking";
 
 const SUBJECTS = ["Custom / bespoke enquiry", "Order status", "Returns & exchange", "Size guidance", "Wholesale / press", "Something else"];
 
@@ -157,6 +158,9 @@ export default function ContactView() {
           )}
         </aside>
       </div>
+
+      {/* private appointment booking */}
+      <AppointmentBooking />
     </div>
   );
 }

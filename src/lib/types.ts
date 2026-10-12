@@ -190,6 +190,8 @@ export interface DashboardStats {
   couponRedemptions: number;
   couponSavings: number;
   pendingQuestions: number;
+  pendingAppointments: number;
+  todaysAppointments: number;
   stockAlerts: number;
   engravingOrders: number;
   giftWrapOrders: number;
@@ -200,6 +202,20 @@ export interface DashboardStats {
   recentOrders: OrderDTO[];
   recentInquiries: { id: string; name: string; email: string; subject: string; status: string; createdAt: string }[];
   topProducts: { id: string; name: string; sold: number }[];
+}
+
+export interface AppointmentDTO {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  type: string; // STORE_VISIT | VIDEO_CALL
+  date: string; // YYYY-MM-DD
+  timeSlot: string;
+  notes: string | null;
+  status: string; // PENDING | CONFIRMED | DECLINED | COMPLETED
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ProductQuestionDTO {

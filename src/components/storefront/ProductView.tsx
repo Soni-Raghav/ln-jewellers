@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import {
   Heart, Share2, Minus, Plus, ShoppingBag, MessageCircle, Truck, RefreshCcw,
   ShieldCheck, Star, Sparkles, Hammer, ChevronLeft, ZoomIn, PenLine, BellRing,
-  Images, Rotate3d, Move3d,
+  Images, Rotate3d, Move3d, Camera,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, stockLabel, waProductInquiry, formatDate } from "@/lib/format";
@@ -43,6 +43,7 @@ export default function ProductView() {
   const [stickyBuy, setStickyBuy] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [mode, setMode] = useState<"photos" | "3d">("photos");
+  const stageCaptureRef = useRef<(() => string) | null>(null);
   const buyBoxRef = useRef<HTMLDivElement | null>(null);
 
   // Magnifier: move the transform-origin with the cursor for a true loupe feel
@@ -133,6 +134,25 @@ export default function ProductView() {
     });
     toast.success(`${product.name} added to your bag`, { description: `${qty} × ${formatINR(display)}` });
     if (thenCheckout) navigate("checkout");
+  };
+
+  /** Download the current 3D pose as a PNG keepsake (works with any orbit angle). */
+  const handleSnapshot = () => {
+    const capture = stageCaptureRef.current;
+    if (!capture) {
+      toast.error("The 3D view is still warming up — try again in a moment.");
+      return;
+    }
+    try {
+      const url = capture();
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `aurelia-${product?.slug ?? "piece"}-3d.png`;
+      a.click();
+      toast.success("3D snapshot saved to your device", { description: "Share it with someone special." });
+    } catch {
+      toast.error("Could not capture the stage — please try again.");
+    }
   };
 
   const handleShare = async () => {
@@ -244,12 +264,21 @@ export default function ProductView() {
                   material={product.material}
                   image={product.images?.[0]}
                   name={product.name}
+                  captureRef={stageCaptureRef}
                   className="aspect-[4/5] w-full"
                 />
                 {/* stage chrome */}
                 <span className="pointer-events-none absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#0A0A0A]/70 px-3 py-1 text-[11px] uppercase tracking-widest text-[#E6C87A] backdrop-blur">
                   <Rotate3d className="h-3.5 w-3.5" /> 3D atelier view
                 </span>
+                <button
+                  type="button"
+                  onClick={handleSnapshot}
+                  className="absolute bottom-4 left-4 inline-flex items-center gap-1.5 rounded-full border border-[#D4AF37]/50 bg-[#0A0A0A]/70 px-3 py-1.5 text-[10px] uppercase tracking-widest text-[#E6C87A] backdrop-blur transition-colors hover:bg-[#D4AF37] hover:text-[#171717] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+                  title="Save the current 3D view as an image"
+                >
+                  <Camera className="h-3.5 w-3.5" /> Snapshot
+                </button>
                 <span
                   aria-hidden
                   className="pointer-events-none absolute bottom-4 right-4 inline-flex items-center gap-1.5 rounded-full bg-white/92 px-3 py-1 text-[10px] uppercase tracking-widest text-[#7a611f] shadow-sm backdrop-blur"

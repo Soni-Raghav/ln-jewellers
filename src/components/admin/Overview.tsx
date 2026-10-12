@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Bell,
   Boxes,
+  CalendarClock,
   Clock,
   Gem,
   Gift,
@@ -66,6 +67,8 @@ const KPIS: { key: keyof DashboardData; label: string; icon: LucideIcon; money?:
   { key: "subscribers", label: "Subscribers", icon: Users },
   { key: "pendingReviews", label: "Pending Reviews", icon: Star },
   { key: "pendingQuestions", label: "Pending Q & A", icon: HelpCircle },
+  { key: "pendingAppointments", label: "Appointment Requests", icon: CalendarClock },
+  { key: "todaysAppointments", label: "Today's Book", icon: CalendarClock },
   { key: "activeCoupons", label: "Active Coupons", icon: Ticket },
   { key: "couponRedemptions", label: "Coupon Uses", icon: ReceiptText },
   { key: "couponSavings", label: "Coupon Savings", icon: Wallet, money: true },
@@ -115,7 +118,7 @@ export default function Overview() {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-          {Array.from({ length: 16 }).map((_, i) => (
+          {Array.from({ length: 18 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-lg border border-[#EAE2D3] bg-[#EFEAE0]" />
           ))}
         </div>

@@ -25,6 +25,7 @@ export default function Footer() {
 
   const companyLinks = [
     { label: "Our Story", action: () => navigate("about") },
+    { label: "Book an Appointment", action: () => navigate("contact") },
     { label: "Contact", action: () => navigate("contact") },
     { label: "FAQ", action: () => navigate("faq") },
     { label: "Track Order", action: () => navigate("track") },

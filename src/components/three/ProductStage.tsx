@@ -20,7 +20,7 @@
  */
 
 import { Component, createElement, useEffect, useRef, useState, type ReactNode } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Float, OrbitControls, Sparkles } from "@react-three/drei";
 import { DoubleSide, type Group, type Mesh, type MeshPhysicalMaterial } from "three";
 import { cn } from "@/lib/utils";
@@ -202,38 +202,43 @@ function EarringPiece({ metal, gem }: { metal: { color: string }; gem: { color: 
         <GoldMaterial tone={metal} />
       </mesh>
       <Gem position={[0, 1.78, 0]} scale={0.45} tone={gem} spin={false} />
-      {/* connector link */}
+      {/* short chain between stud and link */}
+      <mesh position={[0, 1.29, 0]}>
+        <cylinderGeometry args={[0.028, 0.028, 0.42, 12]} />
+        <GoldMaterial tone={metal} />
+      </mesh>
+      {/* connector link — stud hangs from it, bell apex meets it at y=1.05 */}
       <mesh position={[0, 1.05, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.2, 0.035, 16, 40]} />
         <GoldMaterial tone={metal} />
       </mesh>
-      {/* flared bell */}
-      <mesh position={[0, -0.1, 0]}>
-        <coneGeometry args={[0.85, 1.05, 40, 1, true]} />
+      {/* flared bell — apex touches the link, base flares down */}
+      <mesh position={[0, 0.55, 0]}>
+        <coneGeometry args={[0.8, 1.0, 40, 1, true]} />
         <meshStandardMaterial color={metal.color} metalness={1} roughness={0.22} side={DoubleSide} />
       </mesh>
-      {/* rim + beads */}
-      <mesh position={[0, -0.62, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.85, 0.06, 20, 64]} />
+      {/* rim + beads at the bell mouth */}
+      <mesh position={[0, 0.05, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.8, 0.06, 20, 64]} />
         <GoldMaterial tone={metal} />
       </mesh>
       {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
         const a = (i / 8) * Math.PI * 2;
         return (
-          <mesh key={i} position={[Math.cos(a) * 0.85, -0.86, Math.sin(a) * 0.85]}>
+          <mesh key={i} position={[Math.cos(a) * 0.8, -0.19, Math.sin(a) * 0.8]}>
             <sphereGeometry args={[0.075, 14, 14]} />
             <GoldMaterial tone={metal} />
           </mesh>
         );
       })}
       {/* centre drop */}
-      <Gem position={[0, -1.05, 0]} scale={0.55} tone={gem} />
+      <Gem position={[0, -0.45, 0]} scale={0.5} tone={gem} />
     </group>
   );
   return (
-    <group position={[0, 0.35, 0]}>
-      {bell(-1.35, -1)}
-      {bell(1.35, 1)}
+    <group position={[0, 0.35, 0]} rotation={[0.08, 0, 0]}>
+      {bell(-1.05, -1)}
+      {bell(1.05, 1)}
     </group>
   );
 }
@@ -324,7 +329,7 @@ function pickModel(categorySlug: string) {
 function framingFor(categorySlug: string): { z: number; ty: number; sy: number } {
   switch (categorySlug) {
     case "earrings":
-      return { z: 8.6, ty: 0.4, sy: 1.9 };
+      return { z: 8.2, ty: 1.05, sy: 1.6 };
     case "necklaces":
       return { z: 7.2, ty: -0.45, sy: 3.0 };
     case "bracelets-bangles":
@@ -424,6 +429,25 @@ function Floatish({
   );
 }
 
+/**
+ * CaptureBridge — registers a snapshot function on the host's ref so the
+ * product page can export the current orbit pose as a PNG. Renders a fresh
+ * frame before reading the buffer so it works even in "demand" frameloop.
+ */
+function CaptureBridge({ captureRef }: { captureRef: React.RefObject<(() => string) | null> }) {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    captureRef.current = () => {
+      gl.render(scene, camera);
+      return gl.domElement.toDataURL("image/png");
+    };
+    return () => {
+      captureRef.current = null;
+    };
+  }, [gl, scene, camera, captureRef]);
+  return null;
+}
+
 /* ------------------------------------------------------------------ */
 /* Fallback panel                                                      */
 /* ------------------------------------------------------------------ */
@@ -457,12 +481,15 @@ export function ProductStage({
   material,
   image,
   name,
+  captureRef,
   className,
 }: {
   categorySlug: string;
   material: string;
   image?: string;
   name: string;
+  /** When provided, the parent can call `.current()` to snapshot the canvas as a PNG data URL. */
+  captureRef?: React.RefObject<(() => string) | null>;
   className?: string;
 }) {
   const holder = useRef<HTMLDivElement>(null);
@@ -499,12 +526,13 @@ export function ProductStage({
         <StageErrorBoundary fallback={fallback}>
           <Canvas
             dpr={[1, 1.75]}
-            gl={{ antialias: true, alpha: true }}
+            gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
             camera={{ position: [0, 0.7, framingFor(categorySlug).z], fov: 36 }}
             frameloop={reduced ? "demand" : "always"}
             style={{ background: "transparent", touchAction: "none" }}
           >
             <Scene categorySlug={categorySlug} material={material} reduced={reduced} />
+            {captureRef && <CaptureBridge captureRef={captureRef} />}
           </Canvas>
         </StageErrorBoundary>
       ) : webgl === false ? (

@@ -7,7 +7,10 @@ export async function GET() {
     const admin = await requireAdmin();
     if (!admin) return unauthorized();
 
-    const [totalProducts, publishedProducts, orders, inquiries, subscribers, pendingReviews, paidOrders, couponAgg, couponSavingsAgg, pendingQuestions] =
+    // "today" uses IST so the dashboard matches the atelier's calendar
+    const istToday = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const [totalProducts, publishedProducts, orders, inquiries, subscribers, pendingReviews, paidOrders, couponAgg, couponSavingsAgg, pendingQuestions, pendingAppointments, todaysAppointments] =
       await Promise.all([
         db.product.count(),
         db.product.count({ where: { status: "PUBLISHED" } }),
@@ -19,6 +22,8 @@ export async function GET() {
         db.coupon.aggregate({ where: { active: true }, _count: { _all: true }, _sum: { usageCount: true } }),
         db.order.aggregate({ where: { couponDiscount: { gt: 0 } }, _sum: { couponDiscount: true } }),
         db.productQuestion.count({ where: { approved: false } }),
+        db.appointment.count({ where: { status: "PENDING" } }),
+        db.appointment.count({ where: { date: istToday, status: { in: ["PENDING", "CONFIRMED"] } } }),
       ]);
 
     const products = await db.product.findMany({
@@ -88,6 +93,8 @@ export async function GET() {
       couponRedemptions: couponAgg._sum.usageCount ?? 0,
       couponSavings: couponSavingsAgg._sum.couponDiscount ?? 0,
       pendingQuestions,
+      pendingAppointments,
+      todaysAppointments,
       stockAlerts: await db.stockAlert.count({ where: { notified: false } }),
       engravingOrders,
       giftWrapOrders,

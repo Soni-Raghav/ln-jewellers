@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   Boxes,
+  CalendarClock,
   Gem,
   HelpCircle,
   LayoutDashboard,
@@ -38,6 +39,7 @@ import SubscribersManager from "./SubscribersManager";
 import ReviewsManager from "./ReviewsManager";
 import QuestionsManager from "./QuestionsManager";
 import StockAlertsManager from "./StockAlertsManager";
+import AppointmentsManager from "./AppointmentsManager";
 import SettingsManager from "./SettingsManager";
 import AuditLogs from "./AuditLogs";
 
@@ -46,6 +48,7 @@ type AdminTab =
   | "products"
   | "inventory"
   | "alerts"
+  | "appointments"
   | "orders"
   | "coupons"
   | "inquiries"
@@ -60,6 +63,7 @@ const SECTIONS: { id: AdminTab; label: string; icon: LucideIcon }[] = [
   { id: "products", label: "Products", icon: Gem },
   { id: "inventory", label: "Inventory", icon: Boxes },
   { id: "alerts", label: "Stock Alerts", icon: Bell },
+  { id: "appointments", label: "Appointments", icon: CalendarClock },
   { id: "orders", label: "Orders", icon: ReceiptText },
   { id: "coupons", label: "Coupons", icon: Ticket },
   { id: "inquiries", label: "Inquiries", icon: Mail },
@@ -261,6 +265,7 @@ export default function AdminView() {
             {tab === "products" && <ProductsManager />}
             {tab === "inventory" && <InventoryManager />}
             {tab === "alerts" && <StockAlertsManager />}
+            {tab === "appointments" && <AppointmentsManager />}
             {tab === "orders" && <OrdersManager />}
             {tab === "coupons" && <CouponsManager />}
             {tab === "inquiries" && <InquiriesManager />}
