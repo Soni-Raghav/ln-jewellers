@@ -96,3 +96,27 @@ Stage Summary:
   5. Inquiries search is client-side (endpoint lacks `q`); subscribers endpoint returns extra `activeCount` beyond Paginated.
   6. Admin chrome is dark charcoal + ivory content with white cards; login is a full charcoal screen — self-contained background, safe under the main agent's shell.
 - Next actions for other agents: backend owner should add `variants[]` support to `POST /api/admin/products` (contract note in `agent-ctx/2-b-admin-dashboard.md`); main agent should mount `<Toaster />` (sonner) once in the shell so admin toasts render, and import `AdminView` for the `#/admin` view (login gate is built in).
+---
+Task ID: 1
+Agent: main-agent (orchestrator)
+Task: Full build of Aurelia Jewels premium 3D jewelry e-commerce (schema, APIs, storefront, integration, QA)
+
+Work Log:
+- Inspected workspace (Next.js 16 + TS + Tailwind 4 + shadcn/ui + Prisma/SQLite); adapted the requested Vite/Express/Mongo stack to sandbox mandates (documented in README)
+- Installed three/@react-three/fiber/@react-three/drei/bcryptjs
+- Designed Prisma schema (13 models: User, Category, Collection, Product, ProductVariant, InventoryMovement, Order, OrderItem, Payment, ContactInquiry, NewsletterSubscriber, Review, StoreSettings, AuditLog); db:push done
+- Core libs: src/lib/types.ts, auth.ts (JWT HMAC + bcrypt + requireAdmin + logAudit), rate-limit.ts, api-utils.ts, format.ts (INR/WhatsApp builders), store.ts (zustand hash-router + cart + wishlist), serialize.ts
+- Full API surface: public (health, settings, categories, collections, products list/detail, orders create/track, contact, newsletter, reviews, auth login/logout/me, payments create/verify) + admin (dashboard, products CRUD, inventory GET/adjust + CSV export, orders, inquiries, subscribers, reviews, settings, audit-logs) — all admin routes requireAdmin-guarded
+- Seeded via scripts/seed.ts: 14 products (4 categories, 4 collections), variants, reviews, 2 demo orders, inquiries, subscribers, rich store settings; admin admin@aureliajewels.com / Aurelia@Admin1
+- Generated 14 brand images via z-ai CLI into public/images/{products,brand}
+- Launched subagents: Task 2-a (3D hero + homepage — 5 files) and Task 2-b (admin dashboard — 12 files); both lint-clean, worklogs appended
+- Built shell: layout.tsx (Playfair+Jost fonts, SEO/OG metadata, sonner), globals.css (gold theme tokens, scrollbar, marquee), Navbar, Footer (sticky via mt-auto), WhatsAppFloat, SearchDialog, page.tsx (hash router, lazy views, skip-link)
+- Built storefront views: ShopView, CollectionView, ProductView (variants/review dialog), CartView, CheckoutView, WishlistView, TrackOrderView, AboutView, ContactView, FaqView, PolicyView, AdminLoginView, NotFoundView
+- Fixes during integration: cart double-discount convention (ProductCard stores gross; netPrice applied once), admin products POST now creates variants[], PolicyView missing Button import, react-hooks setState-in-effect in Cart/Checkout, removed unused eslint-disable directives, waOrderMessage customer.name undefined bug
+- Emoji corruption in dev toolchain: replaced ✨ with ◆ in WhatsApp message templates (verified correct %E2%97%86 in href)
+
+Stage Summary:
+- Lint: 0 errors 0 warnings. Dev server: compiles clean, no runtime errors in dev.log (only benign THREE.Clock deprecation warning)
+- Agent-browser E2E verified: home renders (3D ring live), shop filters/counts, product detail (price/strike/variants/stock/rating), add-to-bag → cart math (netPrice once, free shipping ≥₹50k, GST 3%), checkout → order AUR-20261012-8CKI7 created → WhatsApp prefilled msg incl. name/SKU/variant/totals/address; stock decremented 2→1; oversell attempt rejected ("Only 1 left…"); admin routes 401 unauthenticated; admin login → dashboard KPIs live; order status PLACED→CONFIRMED persisted; inventory +10 RESTOCK persisted w/ movement + actor; contact/newsletter save + validation errors; mobile 390px renders; footer sticky
+- Git: committed locally as 83248d0 on main. NOT pushed — no GitHub credentials in sandbox; push commands documented in README (Deployment guide)
+- Known follow-ups: Razorpay/SMTP/Cloudinary need credentials; product-card quick-add uses first variant (product page has full variant picker); single-route sandbox constraint means hash routing (shareable URLs preserved)
