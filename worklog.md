@@ -120,3 +120,28 @@ Stage Summary:
 - Agent-browser E2E verified: home renders (3D ring live), shop filters/counts, product detail (price/strike/variants/stock/rating), add-to-bag → cart math (netPrice once, free shipping ≥₹50k, GST 3%), checkout → order AUR-20261012-8CKI7 created → WhatsApp prefilled msg incl. name/SKU/variant/totals/address; stock decremented 2→1; oversell attempt rejected ("Only 1 left…"); admin routes 401 unauthenticated; admin login → dashboard KPIs live; order status PLACED→CONFIRMED persisted; inventory +10 RESTOCK persisted w/ movement + actor; contact/newsletter save + validation errors; mobile 390px renders; footer sticky
 - Git: committed locally as 83248d0 on main. NOT pushed — no GitHub credentials in sandbox; push commands documented in README (Deployment guide)
 - Known follow-ups: Razorpay/SMTP/Cloudinary need credentials; product-card quick-add uses first variant (product page has full variant picker); single-route sandbox constraint means hash routing (shareable URLs preserved)
+---
+Task ID: cron-r2
+Agent: webDevReview agent (round 2)
+Task: QA sweep + coupon system + recently-viewed + JSON-LD/sitemap + styling polish
+
+Work Log:
+- Reviewed worklog; app healthy (GET / 200, /api/health ok)
+- QA sweep via agent-browser: About/Contact/FAQ/Policy/Track/404 all render (sticky footer confirmed on 404); admin CRUD re-verified via API with auth cookie: create-with-variants ✓, patch ✓, delete ✓, invalid inventory rejected ✓; no console/page errors anywhere
+- NEW FEATURE — Coupons (spec §6 "validated discounts"):
+  * prisma Coupon model + Order.couponCode/couponDiscount; db:push + db:generate
+  * src/lib/coupons.ts authoritative validator (active/expiry/usage-limit/minSubtotal/cap, never exceeds subtotal)
+  * /api/coupons/validate (rate-limited) for checkout UX; order API re-validates + increments usageCount atomically inside the tx (updateMany w/ usageCount < usageLimit field reference → COUPON_LIMIT rejection path)
+  * CheckoutView: coupon input/apply/remove UI, discount line, GST recalculated on post-discount subtotal, confirmation shows coupon line; order POST sends couponCode
+  * Admin: /api/admin/coupons (+[id] PATCH/DELETE), CouponsManager.tsx (table, create dialog with validation, active toggle, delete confirm), "Coupons" tab in AdminView
+  * scripts/seed-coupons.ts: AURELIA10 (10% ≥25k cap 20k), FIRSTGLINT (₹5k ≥75k), HEIRLOOM15 (15% ≥3lakh cap 75k)
+  * E2E VERIFIED: coupon applied in UI (−₹3,290 on ₹32,900), order AUR-20261012-HMX3F persisted (subtotal 32900, coupon −3290, tax 888, total 30697), usageCount 0→1
+- NEW FEATURE — RecentlyViewed strip (localStorage snapshots, ≥2 items, horizontal scroll on mobile/grid on md), wired into ProductView
+- NEW FEATURE — SEO: JSON-LD Product schema (offers/availability/aggregateRating, <-escaped) on product pages; src/app/sitemap.ts + public/robots.txt (both 200)
+- STYLING POLISH: 3D hero lighting boosted (ambient 0.65, spot 300, new rim light) — ring now glows vs backdrop; .btn-shimmer gold sweep on hero/checkout CTAs; .img-enter fade-up on product-card + gallery images; MotionConfig reducedMotion="user" + fade view transitions in page.tsx; gold :focus-visible rings
+- BUGS FIXED: Prisma client not regenerated after schema change → dev server restart required; discovered stale `next-server` worker process kept serving old client (killed PIDs); learned sandbox kills non-double-forked background processes — stable pattern is `(setsid nohup bun run dev &)` subshell double-fork; browser stale-chunk ChunkLoadError fixed by full browser session restart (agent-browser close + open)
+
+Stage Summary:
+- Lint 0 errors 0 warnings; committed e27da45
+- All round-2 features browser-verified (see work log); dev server stable via double-fork pattern
+- Next suggestions: coupon usage counter in dashboard KPIs; WhatsApp message could include coupon line; product Q&A; size-guide modal; order confirmation email (needs SMTP creds); Git push still pending credentials
