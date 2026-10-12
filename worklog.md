@@ -371,3 +371,37 @@ Stage Summary:
 - Decisions: (1) engraving fee is per physical piece (qty × fee) — truthful to hand-crafting cost; (2) Order.engravingText kept as legacy (null on new orders) so old orders render unchanged; KPI uses fee>0; (3) cart identity includes engraving so a monogrammed ring and a plain one never merge; (4) gift message requires giftWrap (server strips orphans); (5) capacity counts PENDING+CONFIRMED only — DECLINED/COMPLETED free the slot.
 - Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged since round 3)
 - Next suggestions: (1) emails (order/appointment/restock confirmations) once SMTP lands; (2) appointment per-TYPE capacity (video vs visit); (3) engraving font/style choice (serif vs sans) + preview render; (4) 360° auto-spin capture for the 3D stage; (5) wishlist share sheet.
+
+---
+Task ID: cron-r10
+Agent: webDevReview agent (round 10)
+Task: Status assessment + agent-browser QA + new features (engraving lettering styles full stack, per-type appointment capacity, wishlist native share, 3D 360° spin mode) + styling polish
+
+Work Log:
+- STATUS ASSESSMENT: dev healthy (GET / 200, /api/health ok); git clean @b95a3f0; lint 0/0; tsc clean in src/; reviewed worklog rounds 1-9. QA sweep (agent-browser): home / shop / product / track / admin login + dashboard (18 KPIs) — zero console errors, no regressions. Admin session had expired in the fresh browser session; re-login verified.
+- NEW FEATURE — Engraving lettering styles SERIF | SCRIPT | SANS (FULL STACK):
+  * prisma: OrderItem.engravingFont String? (null = classic serif); db:push + generate + restart
+  * format.ts: ENGRAVING_FONTS map (labels, WhatsApp wording, live-preview classNames; SCRIPT -> system cursive stack 'Snell Roundhand/Segoe Script/Brush Script MT', zero webfont/network dependency) + engravingFontLabel() with legacy fallback
+  * ProductView: "Lettering style" 3-chip radiogroup with per-style "Aa" sample previews + gold selected state; live inscription preview plate renders in the chosen hand + "<Label> hand" caption; addToCart carries engravingFont; toast "...engraved "X" in elegant script"; resets on slug change
+  * store.ts: cart line identity now product+variant+text+FONT (same inscription in two hands = separate jobs); removeFromCart/updateQuantity accept font key; CartView key includes font
+  * Server /api/orders: font normalized server-side (unknown -> SERIF, never trusted from client); CRITICAL FIX during review — lines are built 1:1 from incoming items, so engraving fill switched from a fuzzy find() (which compared against line.engravingFont still null and would have silently DROPPED non-SERIF inscriptions) to exact index mapping; items store engravingFont
+  * Rendered everywhere: cart chip badge, checkout engraved-pieces list + confirmation, TrackOrderView chip, admin OrdersManager chip (raw Prisma rows flow automatically), WhatsApp message "↳ engrave: "X" in elegant script", CSV export "[engrave: X · script]"
+  * E2E VERIFIED: product picker -> script preview -> cart chip "A · R 14.02.26 ELEGANT SCRIPT" -> order AUR-20261012-8IRXM persisted {engravingText, engravingFont:"SCRIPT"} -> WhatsApp prefill contains "in elegant script" -> track chip -> admin detail chip (screenshots)
+- NEW FEATURE — Appointment per-TYPE capacity (FULL STACK, no cross-crowding):
+  * prisma: StoreSettings.appointmentVisitCapacity + appointmentVideoCapacity (replaced single appointmentSlotCapacity); admin Settings now has two inputs (1-10, clamped server-side too)
+  * GET /api/appointments/availability: groupBy timeSlot+type -> per-slot {types:{STORE_VISIT:{remaining,full},VIDEO_CALL:{...}}} + capacities map
+  * POST /api/appointments: capacity counted WHERE type = requested — a busy video hour never crowds out the atelier floor
+  * AppointmentBooking: slotState is type-aware (suffix "fully booked"/"1 seat left" reflects the SELECTED meeting type), hint copy explains the two separate books
+  * E2E VERIFIED (API): visitCapacity=1 -> 1st visit 200, 2nd visit same slot 400 "fully booked", VIDEO_CALL same slot 200 (separate book); capacities restored to 2/2, test rows deleted
+- NEW FEATURE — Wishlist "Share list": navigator.share (title+text with numbered pieces, prices, #/wishlist URL) -> AbortError swallowed -> clipboard fallback with descriptive toast; replaced the plain "Copy list" button; WhatsApp concierge button unchanged
+- NEW FEATURE — 3D stage 360° spin mode: ProductStage accepts spin prop -> OrbitControls autoRotateSpeed 1.1 -> 6.5 (ignored under reduced-motion); ProductView top-right gold toggle pill "Spin 360°" <-> solid-gold "360° · stop" with slow-spinning icon (consolidated into ONE button to avoid colliding with the bottom drag-hint pill); mode resets on slug change. E2E VERIFIED: frames 1.6s apart show large orbit delta (screenshots)
+- STYLING POLISH: lettering chips with in-chip font samples + gold shadow when active; engraving chips now carry a tiny uppercase hand-label badge (cart/checkout/track/admin, consistent); spin toggle chrome states; wishlist share button gold-outline styling; mobile 390px verified (3 chips fit, 44px targets)
+- GETCHAS: (1) dev server died after my pkill — the SYSTEM owns `bun run dev`; restart via `setsid bash -c 'bun run dev >> dev.log 2>&1 < /dev/null &'` survives the tool-shell exit (plain `nohup &` did NOT survive); (2) sqlite3 CLI absent — use `bunx prisma db execute --schema prisma/schema.prisma` or a bun -e script for DB checks; (3) agent-browser `find text` fails on buttons whose text is split by an icon node — use [...querySelectorAll].find(b=>b.textContent...).click() via eval
+- VERIFICATION: bun run lint -> 0 errors 0 warnings; bunx tsc --noEmit -> clean in src/; console clean across home/shop/product/cart/wishlist/contact/track/admin; committed on main (NOT pushed — still no GitHub credentials). Screenshots in download/r10-*.png.
+
+Stage Summary:
+- Files created: (none — all changes extended existing modules)
+- Files modified: prisma/schema.prisma, src/lib/{types,store,format}.ts, src/app/api/orders/route.ts, src/app/api/orders/[number]/route.ts, src/app/api/admin/orders/export/route.ts, src/app/api/admin/settings/route.ts, src/app/api/appointments/route.ts, src/app/api/appointments/availability/route.ts, src/components/storefront/{ProductView,CartView,CheckoutView,TrackOrderView,WishlistView,AppointmentBooking}.tsx, src/components/admin/{OrdersManager,SettingsManager}.tsx, src/components/three/ProductStage.tsx
+- Decisions: (1) engravingFont null = classic serif so every pre-existing engraved order renders unchanged; (2) cart identity includes font — two hands of the same inscription are genuinely different workshop jobs; (3) per-type capacity replaces the shared one — visits and video calls have independent books (schema column swapped, no data migration needed); (4) availability returns the full type matrix per slot so the form can re-render instantly when the guest switches meeting type without a second fetch; (5) wishlist share prefers navigator.share and degrades to clipboard, never blocking on share-sheet dismissal
+- Still blocked on credentials: Razorpay/SMTP/Cloudinary/GitHub push (unchanged since round 3)
+- Next suggestions: (1) emails (order/appointment/restock confirmations) once SMTP lands; (2) engraving fee could vary by style (script premium) — needs a settings map; (3) per-coupon funnel analytics needs view/order events; (4) 360° auto-spin capture -> webm/gif for social; (5) order-confirmation PDF invoice download (print stylesheet exists already).
