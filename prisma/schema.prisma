@@ -348,6 +348,40 @@ model StoreSettings {
   instagramGallery String   @default("[]") // JSON [image urls]
   testimonials     String   @default("[]") // JSON [{name, location, text, rating}]
   razorpayEnabled  Boolean  @default(false)
+
+  // ---- Connectivity (round 14) — empty/false keeps the storefront unchanged ----
+  googleReviewUrl       String  @default("") // "Review us on Google" target link
+  googleMapsUrl         String  @default("") // Maps listing link in the footer
+  googleRating          String  @default("") // e.g. "4.9" — non-empty shows the trust badge
+  googleReviewCount     Int     @default(0)
+  whatsappFloatEnabled  Boolean @default(true)
+  whatsappDefaultMessage String @default("") // prefill for general WhatsApp inquiries (empty = built-in copy)
+  instagramFeedEnabled  Boolean @default(true)
+
+  // ---- Homepage hero + announcement bar (empty = built-in copy) ----
+  heroEyebrow           String  @default("")
+  heroTitle             String  @default("")
+  heroHighlight         String  @default("")
+  heroSubtitle          String  @default("")
+  heroCtaLabel          String  @default("")
+  announcementEnabled   Boolean @default(false)
+  announcementText      String  @default("")
+
+  // ---- Homepage section visibility ----
+  showCollectionsSection Boolean @default(true)
+  showCategoriesSection  Boolean @default(true)
+  showNewArrivals        Boolean @default(true)
+  showBestSellers        Boolean @default(true)
+  showTrending           Boolean @default(true)
+  showHandmade           Boolean @default(true)
+  showTestimonials       Boolean @default(true)
+  showNewsletter         Boolean @default(true)
+
+  // ---- SEO / metadata (empty = built-in defaults) ----
+  seoTitle              String  @default("")
+  seoDescription        String  @default("")
+  ogImageUrl            String  @default("")
+
   updatedAt        DateTime @updatedAt
 }
 

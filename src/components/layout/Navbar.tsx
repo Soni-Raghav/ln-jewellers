@@ -12,6 +12,7 @@ import { formatINR, netPrice } from "@/lib/format";
 import type { Product } from "@/lib/types";
 import { toast } from "sonner";
 import AnnouncementBar from "./AnnouncementBar";
+import SettingsAnnouncementBar from "./SettingsAnnouncementBar";
 import AuthDialog from "./AuthDialog";
 
 const NAV_LINKS = [
@@ -75,6 +76,8 @@ export default function Navbar() {
   return (
     <>
       <header className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${bg}`}>
+        {/* store-owner's custom announcement (Admin → Store Settings → Homepage) */}
+        <SettingsAnnouncementBar />
         {/* announcement strip — rotating promos + active coupon codes */}
         <AnnouncementBar />
         <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8" aria-label="Main navigation">

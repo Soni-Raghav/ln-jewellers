@@ -17,6 +17,36 @@ const STRING_FIELDS = [
   "brandName", "tagline", "whatsappNumber", "email", "phone", "address", "businessHours",
   "instagramUrl", "facebookUrl", "pinterestUrl", "youtubeUrl",
   "aboutStory", "missionVision", "shippingPolicy", "returnsPolicy", "privacyPolicy", "termsPolicy",
+  // round 14 — hero + announcement + connectivity + SEO
+  "heroEyebrow", "heroTitle", "heroHighlight", "heroSubtitle", "heroCtaLabel",
+  "announcementText",
+  "googleReviewUrl", "googleMapsUrl", "googleRating", "whatsappDefaultMessage",
+  "seoTitle", "seoDescription", "ogImageUrl",
+] as const;
+
+// Server-side hygiene: per-field maximum lengths (announcement/SEO short, hero copy
+// medium, URLs long). Anything unlisted falls back to the default 300.
+const STRING_MAX: Record<string, number> = {
+  announcementText: 200,
+  seoTitle: 200,
+  seoDescription: 200,
+  heroEyebrow: 300,
+  heroTitle: 300,
+  heroHighlight: 300,
+  heroSubtitle: 300,
+  heroCtaLabel: 300,
+  googleReviewUrl: 500,
+  googleMapsUrl: 500,
+  ogImageUrl: 500,
+  googleRating: 10,
+  whatsappDefaultMessage: 500,
+};
+
+// Homepage section + connectivity toggles (round 14).
+const BOOLEAN_FIELDS = [
+  "whatsappFloatEnabled", "instagramFeedEnabled", "announcementEnabled",
+  "showCollectionsSection", "showCategoriesSection", "showNewArrivals", "showBestSellers",
+  "showTrending", "showHandmade", "showTestimonials", "showNewsletter",
 ] as const;
 
 export async function PATCH(req: Request) {
@@ -28,7 +58,16 @@ export async function PATCH(req: Request) {
 
     const data: Record<string, unknown> = {};
     for (const f of STRING_FIELDS) {
-      if (body[f] !== undefined) data[f] = sanitize(body[f]).slice(0, f.includes("Policy") || f.includes("Story") || f.includes("Vision") ? 8000 : 300);
+      if (body[f] !== undefined) {
+        const max = STRING_MAX[f] ?? (f.includes("Policy") || f.includes("Story") || f.includes("Vision") ? 8000 : 300);
+        data[f] = sanitize(body[f]).slice(0, max);
+      }
+    }
+    for (const f of BOOLEAN_FIELDS) {
+      if (body[f] !== undefined) data[f] = !!body[f];
+    }
+    if (body.googleReviewCount !== undefined) {
+      data.googleReviewCount = Math.min(100000, Math.max(0, Math.round(toFloat(body.googleReviewCount, 0))));
     }
     if (body.shippingFee !== undefined) data.shippingFee = Math.max(0, toFloat(body.shippingFee, 199));
     if (body.freeShippingAbove !== undefined) data.freeShippingAbove = Math.max(0, toFloat(body.freeShippingAbove, 50000));

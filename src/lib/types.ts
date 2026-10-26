@@ -183,6 +183,35 @@ export interface StoreSettingsDTO {
   instagramGallery: string[];
   testimonials: { name: string; location: string; text: string; rating: number }[];
   razorpayEnabled: boolean;
+  // ---- Connectivity (round 14) — empty/false = storefront falls back to built-in behaviour ----
+  googleReviewUrl: string;
+  googleMapsUrl: string;
+  googleRating: string; // e.g. "4.9" — non-empty shows the Google trust badge
+  googleReviewCount: number;
+  whatsappFloatEnabled: boolean;
+  whatsappDefaultMessage: string; // prefill for general WhatsApp inquiries (empty = built-in copy)
+  instagramFeedEnabled: boolean;
+  // ---- Homepage hero + announcement (empty = built-in copy) ----
+  heroEyebrow: string;
+  heroTitle: string;
+  heroHighlight: string;
+  heroSubtitle: string;
+  heroCtaLabel: string;
+  announcementEnabled: boolean;
+  announcementText: string;
+  // ---- Homepage section visibility ----
+  showCollectionsSection: boolean;
+  showCategoriesSection: boolean;
+  showNewArrivals: boolean;
+  showBestSellers: boolean;
+  showTrending: boolean;
+  showHandmade: boolean;
+  showTestimonials: boolean;
+  showNewsletter: boolean;
+  // ---- SEO / metadata (empty = built-in defaults) ----
+  seoTitle: string;
+  seoDescription: string;
+  ogImageUrl: string;
   updatedAt: string;
 }
 
