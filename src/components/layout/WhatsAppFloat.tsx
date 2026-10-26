@@ -18,6 +18,8 @@ export default function WhatsAppFloat() {
 
   if (view === "admin" || view === "admin-login") return null;
   if (!settings) return null;
+  // Store owner can hide the floating concierge (Admin → Store Settings → Social & Reviews).
+  if (settings.whatsappFloatEnabled === false) return null;
 
   return (
     <a

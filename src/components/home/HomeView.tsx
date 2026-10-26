@@ -36,6 +36,7 @@ import type {
 import { useApp } from "@/lib/store";
 import { waGeneralInquiry } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import GoogleG from "@/components/layout/GoogleG";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -308,6 +309,17 @@ export default function HomeView() {
   /* ---------------- derived data (with graceful fallbacks) ---------------- */
 
   const settings = data.settings;
+
+  /* ---------------- settings-driven hero + connectivity (round 14) ---------------- */
+  const heroEyebrow = settings?.heroEyebrow?.trim() || "Handcrafted in Jaipur · Since 2016";
+  const heroTitle = settings?.heroTitle?.trim() || "Heirlooms for the";
+  const heroHighlight = settings?.heroHighlight?.trim() || "Modern Muse";
+  const heroSubtitle =
+    settings?.heroSubtitle?.trim() ||
+    "22K and 18K gold, raised by master karigars in our Jaipur atelier — hallmarked, insured, and made to be inherited.";
+  const heroCtaLabel = settings?.heroCtaLabel?.trim() || "Explore the Collection";
+  const googleRating = settings?.googleRating?.trim() || "";
+  const googleRatingNum = Math.min(5, Math.max(0, Math.round(parseFloat(googleRating) || 0)));
   const featured = data.featured;
   const bestList = data.best.length ? data.best : featured.slice(0, 4);
   const trendingList = data.trending.length ? data.trending : featured.slice(0, 4);
@@ -436,24 +448,27 @@ export default function HomeView() {
               variants={heroItem}
               className="text-xs uppercase tracking-[0.3em] text-[#D4AF37]"
             >
-              Handcrafted in Jaipur · Since 2016
+              {heroEyebrow}
             </motion.p>
 
             <motion.h1
               variants={heroItem}
               className="mt-6 font-serif text-5xl leading-[1.05] text-[#FAF7F0] md:text-6xl lg:text-7xl"
             >
-              Heirlooms for the
-              <br />
-              <em className="italic text-[#D4AF37]">Modern Muse</em>
+              {heroTitle}
+              {heroHighlight ? (
+                <>
+                  <br />
+                  <em className="italic text-[#D4AF37]">{heroHighlight}</em>
+                </>
+              ) : null}
             </motion.h1>
 
             <motion.p
               variants={heroItem}
               className="mt-6 max-w-md text-base leading-relaxed text-white/70"
             >
-              22K and 18K gold, raised by master karigars in our Jaipur atelier —
-              hallmarked, insured, and made to be inherited.
+              {heroSubtitle}
             </motion.p>
 
             <motion.div
@@ -464,7 +479,7 @@ export default function HomeView() {
                 onClick={() => navigate("shop")}
                 className="btn-shimmer h-12 bg-[#D4AF37] px-8 text-sm font-medium text-black hover:bg-[#E6C87A]"
               >
-                Explore the Collection
+                {heroCtaLabel}
               </Button>
               <Button
                 variant="outline"
@@ -532,7 +547,8 @@ export default function HomeView() {
         )}
       </section>
 
-      {/* ============ c) FEATURED COLLECTIONS ============ */}
+      {/* ============ c) FEATURED COLLECTIONS (toggle: showCollectionsSection) ============ */}
+      {settings?.showCollectionsSection !== false && (
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <SectionHeading
@@ -595,8 +611,10 @@ export default function HomeView() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* ============ d) SHOP BY CATEGORY ============ */}
+      {/* ============ d) SHOP BY CATEGORY (toggle: showCategoriesSection) ============ */}
+      {settings?.showCategoriesSection !== false && (
       <section className="border-t border-[#D4AF37]/20 bg-white py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <SectionHeading
@@ -652,8 +670,10 @@ export default function HomeView() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* ============ e) NEW ARRIVALS ============ */}
+      {/* ============ e) NEW ARRIVALS (toggle: showNewArrivals) ============ */}
+      {settings?.showNewArrivals !== false && (
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <SectionHeading
@@ -694,8 +714,10 @@ export default function HomeView() {
           </Reveal>
         </div>
       </section>
+      )}
 
-      {/* ============ f) BEST SELLERS ============ */}
+      {/* ============ f) BEST SELLERS (toggle: showBestSellers) ============ */}
+      {settings?.showBestSellers !== false && (
       <section className="border-y border-[#D4AF37]/20 bg-white py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <SectionHeading
@@ -745,8 +767,10 @@ export default function HomeView() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* ============ g) TRENDING NOW ============ */}
+      {/* ============ g) TRENDING NOW (toggle: showTrending) ============ */}
+      {settings?.showTrending !== false && (
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-7xl px-4 md:px-8">
           <SectionHeading
@@ -783,8 +807,10 @@ export default function HomeView() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* ============ h) HANDMADE SHOWCASE — ARTISAN SOUL ============ */}
+      {/* ============ h) HANDMADE SHOWCASE — ARTISAN SOUL (toggle: showHandmade) ============ */}
+      {settings?.showHandmade !== false && (
       <section className="border-y border-[#D4AF37]/20 bg-white py-20 md:py-28">
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 md:px-8 lg:grid-cols-2 lg:gap-16">
           {/* left: framed artisan image */}
@@ -861,6 +887,7 @@ export default function HomeView() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ============ i) BRAND STORY TEASER ============ */}
       <section className="bg-[#171717] py-20 md:py-28">
@@ -909,8 +936,51 @@ export default function HomeView() {
         </div>
       </section>
 
-      {/* ============ j) TESTIMONIALS ============ */}
-      {testimonials.length > 0 && (
+      {/* ============ j0) GOOGLE REVIEWS TRUST BADGE (settings-driven) ============ */}
+      {googleRating && (
+        <section aria-label="Google reviews" className="border-t border-[#D4AF37]/20 bg-white py-14">
+          <div className="mx-auto flex max-w-3xl flex-col items-center px-4 text-center md:px-8">
+            <Reveal>
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-5">
+                <GoogleG className="h-9 w-9 shrink-0" />
+                <span className="font-serif text-4xl text-[#0A0A0A] md:text-5xl">{googleRating}</span>
+                <div className="flex flex-col items-center gap-1 sm:items-start">
+                  <div className="flex gap-0.5" aria-label={`${googleRating} out of 5 stars on Google`}>
+                    {Array.from({ length: 5 }).map((_, s) => (
+                      <Star
+                        key={s}
+                        className={cn(
+                          "size-4",
+                          s < googleRatingNum ? "fill-[#D4AF37] text-[#D4AF37]" : "text-[#D4AF37]/30"
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+                    {(settings?.googleReviewCount ?? 0) > 0
+                      ? `${settings?.googleReviewCount} verified Google reviews`
+                      : "Google reviews"}
+                  </span>
+                </div>
+              </div>
+              {settings?.googleReviewUrl ? (
+                <a
+                  href={settings.googleReviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-6 inline-flex h-11 items-center gap-2.5 border border-[#D4AF37]/60 px-6 text-xs uppercase tracking-[0.25em] text-[#8A6D1F] transition hover:bg-[#D4AF37]/10"
+                >
+                  <GoogleG className="h-3.5 w-3.5" />
+                  Review us on Google
+                </a>
+              ) : null}
+            </Reveal>
+          </div>
+        </section>
+      )}
+
+      {/* ============ j) TESTIMONIALS (toggle: showTestimonials) ============ */}
+      {settings?.showTestimonials !== false && testimonials.length > 0 && (
         <section className="py-20 md:py-28">
           <div className="mx-auto max-w-7xl px-4 md:px-8">
             <SectionHeading
@@ -955,8 +1025,8 @@ export default function HomeView() {
         </section>
       )}
 
-      {/* ============ k) INSTAGRAM GALLERY ============ */}
-      {gallery.length > 0 && (
+      {/* ============ k) INSTAGRAM GALLERY (toggle: instagramFeedEnabled) ============ */}
+      {settings?.instagramFeedEnabled !== false && gallery.length > 0 && (
         <section className="border-t border-[#D4AF37]/20 bg-white py-20 md:py-28">
           <div className="mx-auto max-w-7xl px-4 md:px-8">
             <SectionHeading
@@ -1030,7 +1100,8 @@ export default function HomeView() {
         </div>
       </section>
 
-      {/* ============ m) NEWSLETTER ============ */}
+      {/* ============ m) NEWSLETTER (toggle: showNewsletter) ============ */}
+      {settings?.showNewsletter !== false && (
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-xl px-4 text-center md:px-8">
           <SectionHeading
@@ -1078,6 +1149,7 @@ export default function HomeView() {
           </Reveal>
         </div>
       </section>
+      )}
       {/* Footer intentionally omitted — rendered by the root shell. */}
     </div>
   );

@@ -76,10 +76,9 @@ export default function Navbar() {
   return (
     <>
       <header className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${bg}`}>
-        {/* store-owner's custom announcement (Admin → Store Settings → Homepage) */}
-        <SettingsAnnouncementBar />
-        {/* announcement strip — rotating promos + active coupon codes */}
-        <AnnouncementBar />
+        {/* store-owner's custom announcement (Admin → Store Settings → Homepage);
+            falls back to the rotating promo bar when no owner announcement is active */}
+        <SettingsAnnouncementBar fallback={<AnnouncementBar />} />
         <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
           {/* brand */}
           <button onClick={() => go("home")} className={`flex items-center gap-2.5 ${tone} group`} aria-label="LN Jewellers home">

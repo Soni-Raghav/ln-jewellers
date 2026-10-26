@@ -12,13 +12,17 @@
  * - Mobile-safe: single line, truncates, live-updates from the settings store.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 import { useApp } from "@/lib/store";
 
 const DISMISS_KEY = "ln_announcement_dismissed";
 
-export default function SettingsAnnouncementBar() {
+/**
+ * `fallback` renders when the store owner has no active announcement —
+ * the default rotating promo bar takes over (owner announcement wins otherwise).
+ */
+export default function SettingsAnnouncementBar({ fallback }: { fallback?: React.ReactNode }) {
   const settings = useApp((s) => s.settings);
   const text = settings?.announcementEnabled ? (settings.announcementText ?? "").trim() : "";
 
@@ -33,17 +37,9 @@ export default function SettingsAnnouncementBar() {
     }
   });
 
-  // A new announcement (different text) should always be shown again.
-  useEffect(() => {
-    if (!text && dismissedText) {
-      try {
-        window.localStorage.removeItem(DISMISS_KEY);
-      } catch {
-        /* private mode — ignore */
-      }
-      setDismissedText(null);
-    }
-  }, [text, dismissedText]);
+  // Dismissal is keyed to the announcement TEXT: a brand-new message always
+  // shows again. When the owner clears/turns off the announcement, the stale
+  // dismissal is simply ignored (and overwritten on the next dismiss).
 
   const dismiss = () => {
     setDismissedText(text);
@@ -54,7 +50,7 @@ export default function SettingsAnnouncementBar() {
     }
   };
 
-  if (!text || dismissedText === text) return null;
+  if (!text || dismissedText === text) return <>{fallback ?? null}</>;
 
   return (
     <div

@@ -131,10 +131,15 @@ export function waProductInquiry(
   return waLink(settings.whatsappNumber, lines.join("\n"));
 }
 
-export function waGeneralInquiry(settings: Pick<StoreSettingsDTO, "whatsappNumber">): string {
+export function waGeneralInquiry(
+  settings: Pick<StoreSettingsDTO, "whatsappNumber"> & Partial<Pick<StoreSettingsDTO, "whatsappDefaultMessage">>
+): string {
+  // Store owners can set their own concierge opener (Admin → Store Settings →
+  // Social & Reviews); empty falls back to the built-in greeting.
+  const custom = (settings.whatsappDefaultMessage ?? "").trim();
   return waLink(
     settings.whatsappNumber,
-    `Hello LN Jewellers! ◆\n\nI'd love to know more about your handcrafted jewelry collections.`
+    custom || `Hello LN Jewellers! ◆\n\nI'd love to know more about your handcrafted jewelry collections.`
   );
 }
 

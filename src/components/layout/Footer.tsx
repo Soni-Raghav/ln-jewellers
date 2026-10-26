@@ -2,6 +2,7 @@
 
 import { useApp } from "@/lib/store";
 import { Instagram, Facebook, Gem, Mail, Phone, MapPin, Clock } from "lucide-react";
+import GoogleG from "./GoogleG";
 
 export default function Footer() {
   const view = useApp((s) => s.view);
@@ -78,7 +79,31 @@ export default function Footer() {
                   <s.icon className="h-4 w-4" strokeWidth={1.5} />
                 </a>
               ))}
+            {settings?.googleReviewUrl ? (
+              <a
+                href={settings.googleReviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Review ${brand} on Google`}
+                title="Review us on Google"
+                className="grid h-10 w-10 place-items-center rounded-full border border-[#D4AF37]/30 bg-transparent transition-all hover:border-[#D4AF37] hover:bg-[#D4AF37]/10"
+              >
+                <GoogleG className="h-4 w-4" />
+              </a>
+            ) : null}
           </div>
+          {settings?.googleRating ? (
+            <a
+              href={settings.googleReviewUrl || "#"}
+              target={settings.googleReviewUrl ? "_blank" : undefined}
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-[#FAF7F0]/50 transition-colors hover:text-[#E6C87A]"
+            >
+              <GoogleG className="h-3.5 w-3.5" />
+              <span className="text-[#E6C87A]">{settings.googleRating}</span>
+              {settings.googleReviewCount > 0 ? ` · ${settings.googleReviewCount} Google reviews` : " · Google reviews"}
+            </a>
+          ) : null}
         </div>
 
         {/* shop */}
@@ -113,7 +138,16 @@ export default function Footer() {
         <div>
           <h3 className="text-[11px] uppercase tracking-[0.35em] text-[#D4AF37]">Visit & Policies</h3>
           <ul className="mt-5 space-y-3 text-sm text-[#FAF7F0]/65">
-            <li className="flex gap-2.5"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#D4AF37]/70" /><span>{settings?.address || "Johari Bazaar, Jaipur"}</span></li>
+            <li className="flex gap-2.5">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#D4AF37]/70" />
+              {settings?.googleMapsUrl ? (
+                <a href={settings.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-[#E6C87A]" title="Open in Google Maps">
+                  {settings?.address || "Johari Bazaar, Jaipur"}
+                </a>
+              ) : (
+                <span>{settings?.address || "Johari Bazaar, Jaipur"}</span>
+              )}
+            </li>
             <li className="flex gap-2.5">
               <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#D4AF37]/70" />
               <a href={`tel:${(settings?.phone || "").replace(/\s/g, "")}`} className="transition-colors hover:text-[#E6C87A]">{settings?.phone || "+91 98765 43210"}</a>
