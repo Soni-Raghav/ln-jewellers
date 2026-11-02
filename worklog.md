@@ -551,3 +551,10 @@ Work Log (round 14b — settings singleton fix + full E2E re-verification):
 - GOTCHA (agent-browser): fill @ref "" is a NO-OP (React state never updates — silent persistence bug in test flows); "0" fills work. Workaround for clearing: click → press Control+a → press Backspace, then snapshot to confirm.
 - VERIFICATION: lint 0/0; dev.log clean (only a stale EADDRINUSE from an old duplicate-start attempt); SEO title correct on /; no page errors.
 - PUSH: retried — STILL 403. Fine-grained PAT still lacks Contents:write. 17 commits queued locally. User must either edit the token (Contents → Read and write) or paste a classic repo-scoped token (ghp_).
+
+Work Log (round 14c — GITHUB PUSH LANDED):
+- After 3 fine-grained PATs all lacking Contents:write (GitHub defaults it read-only; probe: PUT contents → "Resource not accessible by personal access token"), the user supplied a CLASSIC token (ghp_…, repo scope) → git push SUCCEEDED.
+- origin/main = local main = 9166b5c (verified via ls-remote + API). 30 commits, 310 files, default_branch=main. Key files verified present on remote (schema, SettingsManager, vercel.json, CI workflow, postgres-schema script). Repo: https://github.com/Soni-Raghav/ln-jewellers
+- Note: fine-grained token still configured earlier was never committed anywhere (remote URL only, machine-local .git/config). Classic token now in origin URL — never write tokens into tracked files.
+- SSH deploy-key fallback was prepared (ssh-wrapper.js over ssh2 lib since sandbox lacks openssh binary; transport verified working) but became unnecessary.
+- REMAINING for hosting: VERCEL_TOKEN (user) → vercel CLI deploy + env vars (DATABASE_URL via Neon free Postgres, AUTH_SECRET, NEXT_PUBLIC_SITE_URL). Neon connection string needed for production DB; deploy can proceed first, DB wired after.
