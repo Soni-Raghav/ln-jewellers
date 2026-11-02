@@ -10,10 +10,65 @@ const db = new PrismaClient();
 
 const force = process.argv.includes("--force");
 
+/**
+ * StoreSettings singleton — ensured on EVERY seed run (idempotent upsert with
+ * an empty update clause, so existing values are never overwritten).
+ * Round 14 fix: this block used to sit below the products-exist early return,
+ * so databases seeded before the settings model existed never got a row and
+ * /api/settings returned null (admin panel opened with blank fields).
+ */
+async function ensureStoreSettings() {
+  // ---------- Store settings ----------
+  const faq = [
+    { q: "Is your gold hallmarked?", a: "Yes. Every 22K piece carries a BIS 916 hallmark and every 18K piece carries a BIS 750 hallmark from a Government-approved Assaying & Hallmarking centre. The hallmark number for your specific piece is shared before dispatch." },
+    { q: "What is the difference between ready-to-ship and made-to-order?", a: "Ready-to-ship pieces are dispatched within 48 hours. Made-to-order pieces (marked on each product) are individually crafted for you and typically take 3–8 weeks depending on complexity. Timelines are confirmed on WhatsApp before you pay." },
+    { q: "How do I order through WhatsApp?", a: "Add pieces to your cart and choose 'Order via WhatsApp' at checkout. We generate a complete order message — you just review and press send. Our concierge confirms availability, payment and delivery personally." },
+    { q: "Do you buy back gold?", a: "We offer exchange on unworn pieces within 30 days and gold-value exchange thereafter, subject to prevailing rates and hallmark verification. Full policy on our Returns page." },
+    { q: "Do you ship internationally?", a: "We currently ship across India with insured courier. International shipping to select countries is available on request via WhatsApp with full insurance and duties quoted upfront." },
+    { q: "Can I customise a design?", a: "Absolutely — bespoke is our favourite word. Message us on WhatsApp with your idea, budget and timeline. Our design team responds with sketches and a quote within 48 hours." },
+  ];
+  const testimonials = [
+    { name: "Ananya Sharma", location: "Mumbai", text: "The Surya ring is even more beautiful in person. Everything — packaging to the handwritten note — felt like a ceremony.", rating: 5 },
+    { name: "Priya Desai", location: "Hyderabad", text: "Three aunts have already ordered after seeing my Devi choker. The temple work is unbelievably fine.", rating: 5 },
+    { name: "Meera Iyer", location: "Chennai", text: "Danced all night at a sangeet and forgot I was wearing the Raag jhumkas. Feather-light, heirloom-fine.", rating: 5 },
+    { name: "Sunita Agarwal", location: "Jaipur", text: "The Triveni bangles chime so softly and stack beautifully. Exactly what I wanted for Karwa Chauth.", rating: 5 },
+  ];
+  const gallery = [
+    "/images/products/ring-solitaire.png", "/images/products/necklace-choker.png", "/images/products/earrings-jhumka.png",
+    "/images/products/bangle-classic.png", "/images/products/pendant-handmade.png", "/images/products/necklace-bridal.png",
+    "/images/products/earrings-hoops.png", "/images/products/bracelet-chain.png",
+  ];
+  await db.storeSettings.upsert({
+    where: { id: "singleton" },
+    create: {
+      id: "singleton",
+      aboutStory:
+        "LN Jewellers began in 2016 at a two-bench workshop in Johari Bazaar, Jaipur — with one master karigar, a sheet of 22K gold and a stubborn belief that real luxury is made slowly.\n\nToday our atelier spans twelve artisans, but nothing about our process has rushed. Every piece is still drawn by hand, filed by hand, set by hand and inspected under a loupe before it earns the LN Jewellers name. We buy our gold from refiners certified by the Responsible Jewellery Council and our gemstones from family dealers we have known for decades.\n\nWe don't do fast fashion and we don't do inflated making charges. We do jewellery meant to outlive trends — and us.",
+      missionVision:
+        "Mission: To make heirloom-quality handcrafted gold jewellery accessible with radical transparency — honest weights, hallmarked purity and making charges you can actually understand.\n\nVision: A world where every woman owns at least one piece of jewellery that tells her story, made by hands that were paid and treated with dignity.",
+      shippingPolicy:
+        "Ready-to-ship pieces are dispatched within 48 working hours via fully insured courier (Blue Dart / Sequel) with signature-on-delivery.\n\n• Free insured shipping on orders above ₹50,000. A flat ₹199 applies below that.\n• Made-to-order timelines are confirmed personally before payment.\n• Every parcel is discreet — plain outer box, no brand names.\n• Cash on Delivery is available up to ₹50,000.\n• International shipping on request via WhatsApp, duties quoted upfront.",
+      returnsPolicy:
+        "We accept returns of unworn, unengraved pieces in original packaging within 30 days of delivery for a full refund or exchange.\n\n• Refunds are processed to source within 5–7 working days of QC receipt.\n• Made-to-order and bespoke pieces are exchange-only.\n• Engraved and resized pieces are exchange-only for gold value.\n• To raise a return, message us on WhatsApp with your order number — we arrange a complimentary insured pickup.",
+      privacyPolicy:
+        "We collect only what we need to craft, ship and care for your jewellery: your name, contact details, addresses and order history.\n\n• We never sell or rent your data. Ever.\n• Payment details are handled by our PCI-DSS compliant payment partners; we never see or store card numbers.\n• WhatsApp messages are used only to service your orders and enquiries.\n• You may request a copy or deletion of your data anytime at hello@lnjewellers.com.",
+      termsPolicy:
+        "By using this website you agree to these terms.\n\n• All prices are in INR and include GST as shown at checkout. Gold prices are locked at order confirmation.\n• Product photography is illustrative; natural gemstones vary slightly in tone — that is their nature, not a defect.\n• Hallmark weights may vary ±0.20g from listed weight; you are billed on actual hallmark weight, never more.\n• All designs remain the intellectual property of LN Jewellers.\n• Disputes are subject to the exclusive jurisdiction of courts in Jaipur, Rajasthan.",
+      faq: JSON.stringify(faq),
+      testimonials: JSON.stringify(testimonials),
+      instagramGallery: JSON.stringify(gallery),
+    },
+    update: {},
+  });
+  console.log("✓ Store settings");
+}
+
 async function main() {
+  await ensureStoreSettings();
+
   const existing = await db.product.count();
   if (existing > 0 && !force) {
-    console.log(`Database already has ${existing} products — skipping seed (use --force to reseed).`);
+    console.log(`Database already has ${existing} products — skipping catalog seed (use --force to reseed).`);
     return;
   }
 
@@ -359,50 +414,6 @@ async function main() {
     data: [{ email: "ananya@example.com" }, { email: "priya@example.com" }, { email: "meera@example.com" }, { email: "collector@example.com" }],
   });
   console.log("✓ Inquiries & subscribers");
-
-  // ---------- Store settings ----------
-  const faq = [
-    { q: "Is your gold hallmarked?", a: "Yes. Every 22K piece carries a BIS 916 hallmark and every 18K piece carries a BIS 750 hallmark from a Government-approved Assaying & Hallmarking centre. The hallmark number for your specific piece is shared before dispatch." },
-    { q: "What is the difference between ready-to-ship and made-to-order?", a: "Ready-to-ship pieces are dispatched within 48 hours. Made-to-order pieces (marked on each product) are individually crafted for you and typically take 3–8 weeks depending on complexity. Timelines are confirmed on WhatsApp before you pay." },
-    { q: "How do I order through WhatsApp?", a: "Add pieces to your cart and choose 'Order via WhatsApp' at checkout. We generate a complete order message — you just review and press send. Our concierge confirms availability, payment and delivery personally." },
-    { q: "Do you buy back gold?", a: "We offer exchange on unworn pieces within 30 days and gold-value exchange thereafter, subject to prevailing rates and hallmark verification. Full policy on our Returns page." },
-    { q: "Do you ship internationally?", a: "We currently ship across India with insured courier. International shipping to select countries is available on request via WhatsApp with full insurance and duties quoted upfront." },
-    { q: "Can I customise a design?", a: "Absolutely — bespoke is our favourite word. Message us on WhatsApp with your idea, budget and timeline. Our design team responds with sketches and a quote within 48 hours." },
-  ];
-  const testimonials = [
-    { name: "Ananya Sharma", location: "Mumbai", text: "The Surya ring is even more beautiful in person. Everything — packaging to the handwritten note — felt like a ceremony.", rating: 5 },
-    { name: "Priya Desai", location: "Hyderabad", text: "Three aunts have already ordered after seeing my Devi choker. The temple work is unbelievably fine.", rating: 5 },
-    { name: "Meera Iyer", location: "Chennai", text: "Danced all night at a sangeet and forgot I was wearing the Raag jhumkas. Feather-light, heirloom-fine.", rating: 5 },
-    { name: "Sunita Agarwal", location: "Jaipur", text: "The Triveni bangles chime so softly and stack beautifully. Exactly what I wanted for Karwa Chauth.", rating: 5 },
-  ];
-  const gallery = [
-    "/images/products/ring-solitaire.png", "/images/products/necklace-choker.png", "/images/products/earrings-jhumka.png",
-    "/images/products/bangle-classic.png", "/images/products/pendant-handmade.png", "/images/products/necklace-bridal.png",
-    "/images/products/earrings-hoops.png", "/images/products/bracelet-chain.png",
-  ];
-  await db.storeSettings.upsert({
-    where: { id: "singleton" },
-    create: {
-      id: "singleton",
-      aboutStory:
-        "LN Jewellers began in 2016 at a two-bench workshop in Johari Bazaar, Jaipur — with one master karigar, a sheet of 22K gold and a stubborn belief that real luxury is made slowly.\n\nToday our atelier spans twelve artisans, but nothing about our process has rushed. Every piece is still drawn by hand, filed by hand, set by hand and inspected under a loupe before it earns the LN Jewellers name. We buy our gold fromrefiners certified by the Responsible Jewellery Council and our gemstones from family dealers we have known for decades.\n\nWe don't do fast fashion and we don't do inflated making charges. We do jewellery meant to outlive trends — and us.",
-      missionVision:
-        "Mission: To make heirloom-quality handcrafted gold jewellery accessible with radical transparency — honest weights, hallmarked purity and making charges you can actually understand.\n\nVision: A world where every woman owns at least one piece of jewellery that tells her story, made by hands that were paid and treated with dignity.",
-      shippingPolicy:
-        "Ready-to-ship pieces are dispatched within 48 working hours via fully insured courier (Blue Dart / Sequel) with signature-on-delivery.\n\n• Free insured shipping on orders above ₹50,000. A flat ₹199 applies below that.\n• Made-to-order timelines are confirmed personally before payment.\n• Every parcel is discreet — plain outer box, no brand names.\n• Cash on Delivery is available up to ₹50,000.\n• International shipping on request via WhatsApp, duties quoted upfront.",
-      returnsPolicy:
-        "We accept returns of unworn, unengraved pieces in original packaging within 30 days of delivery for a full refund or exchange.\n\n• Refunds are processed to source within 5–7 working days of QC receipt.\n• Made-to-order and bespoke pieces are exchange-only.\n• Engraved and resized pieces are exchange-only for gold value.\n• To raise a return, message us on WhatsApp with your order number — we arrange a complimentary insured pickup.",
-      privacyPolicy:
-        "We collect only what we need to craft, ship and care for your jewellery: your name, contact details, addresses and order history.\n\n• We never sell or rent your data. Ever.\n• Payment details are handled by our PCI-DSS compliant payment partners; we never see or store card numbers.\n• WhatsApp messages are used only to service your orders and enquiries.\n• You may request a copy or deletion of your data anytime at hello@lnjewellers.com.",
-      termsPolicy:
-        "By using this website you agree to these terms.\n\n• All prices are in INR and include GST as shown at checkout. Gold prices are locked at order confirmation.\n• Product photography is illustrative; natural gemstones vary slightly in tone — that is their nature, not a defect.\n• Hallmark weights may vary ±0.20g from listed weight; you are billed on actual hallmark weight, never more.\n• All designs remain the intellectual property of LN Jewellers.\n• Disputes are subject to the exclusive jurisdiction of courts in Jaipur, Rajasthan.",
-      faq: JSON.stringify(faq),
-      testimonials: JSON.stringify(testimonials),
-      instagramGallery: JSON.stringify(gallery),
-    },
-    update: {},
-  });
-  console.log("✓ Store settings");
 
   await db.auditLog.create({
     data: { actor: "seed", action: "SEED", entity: "Database", details: `Seeded ${P.length} products, 2 orders, ${reviews.length} reviews` },
