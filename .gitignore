@@ -75,3 +75,4 @@ tool-results/
 
 # generated at build time by scripts/use-postgres-schema.mjs
 /prisma/schema.postgres.prisma
+.neon
