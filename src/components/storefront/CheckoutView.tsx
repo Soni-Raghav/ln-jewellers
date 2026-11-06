@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, isValidElement, cloneElement } from "react";
 import { useApp } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket, Gift, PenLine, Sparkles, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, netPrice, waOrderMessage, engravingFontLabel, engravingTotals, engravingFeeFor } from "@/lib/format";
+import { isEmailValid, isPhoneValid, isPincodeValid, ADDRESS_MIN_LENGTH, summarizeFieldErrors } from "@/lib/validation";
 import type { CartItem, StoreSettingsDTO } from "@/lib/types";
 
 interface PlacedOrder {
@@ -207,7 +208,41 @@ export default function CheckoutView() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  // Mirror of the server rules — catches mistakes instantly and names the field,
+  // so the shopper never meets a bare "Validation failed" toast again.
+  const validateForm = (): Record<string, string> => {
+    const errs: Record<string, string> = {};
+    if (!form.customerName.trim()) errs.customerName = "Full name is required";
+    if (!isEmailValid(form.email)) errs.email = "Valid email is required";
+    if (!isPhoneValid(form.phone)) errs.phone = "Valid phone number is required";
+    if (form.address.trim().length < ADDRESS_MIN_LENGTH)
+      errs.address = "Please enter your full delivery address (house no., street, area)";
+    if (!form.city.trim()) errs.city = "City is required";
+    if (!form.state.trim()) errs.state = "State is required";
+    if (!isPincodeValid(form.pincode)) errs.pincode = "6-digit PIN code required";
+    return errs;
+  };
+
+  const focusFirstError = (errs: Record<string, string>) => {
+    const first = Object.keys(errs)[0];
+    if (!first) return;
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`[data-field="${first}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.querySelector<HTMLElement>("input, textarea")?.focus({ preventScroll: true });
+    });
+  };
+
   const placeOrder = async () => {
+    const clientErrs = validateForm();
+    if (Object.keys(clientErrs).length) {
+      setFields(clientErrs);
+      const summary = summarizeFieldErrors(clientErrs);
+      setError(summary);
+      toast.error(summary);
+      focusFirstError(clientErrs);
+      return;
+    }
     setPlacing(true);
     setFields({});
     setError("");
@@ -227,8 +262,12 @@ export default function CheckoutView() {
       const data = await res.json();
       if (!res.ok) {
         setFields(data.fields ?? {});
-        setError(data.error ?? "Could not place the order");
-        toast.error(data.error ?? "Could not place the order");
+        // Name the failing fields right next to the button and in the toast —
+        // "Validation failed" alone tells a shopper nothing.
+        const msg = data.fields && Object.keys(data.fields).length ? summarizeFieldErrors(data.fields) : data.error ?? "Could not place the order";
+        setError(msg);
+        toast.error(msg);
+        if (data.fields && Object.keys(data.fields).length) focusFirstError(data.fields);
         return;
       }
       const order: PlacedOrder = data.order;
@@ -287,27 +326,35 @@ export default function CheckoutView() {
           <section className="rounded-xl border border-[#D4AF37]/25 bg-white p-6" aria-labelledby="shipping-heading">
             <h2 id="shipping-heading" className="font-serif text-xl">Shipping details</h2>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field label="Full name" required error={fields.customerName}>
+              <Field label="Full name" required name="customerName" error={fields.customerName}>
                 <Input value={form.customerName} onChange={set("customerName")} className="border-[#D4AF37]/40 bg-[#FAF7F0]" placeholder="Ananya Sharma" autoComplete="name" />
               </Field>
-              <Field label="Email" required error={fields.email}>
+              <Field label="Email" required name="email" error={fields.email}>
                 <Input type="email" value={form.email} onChange={set("email")} className="border-[#D4AF37]/40 bg-[#FAF7F0]" placeholder="you@example.com" autoComplete="email" />
               </Field>
-              <Field label="Phone (WhatsApp preferred)" required error={fields.phone}>
-                <Input value={form.phone} onChange={set("phone")} className="border-[#D4AF37]/40 bg-[#FAF7F0]" placeholder="+91 98XXX XXXXX" autoComplete="tel" />
+              <Field label="Phone (WhatsApp preferred)" required name="phone" error={fields.phone}>
+                <Input type="tel" inputMode="tel" value={form.phone} onChange={set("phone")} className="border-[#D4AF37]/40 bg-[#FAF7F0]" placeholder="63501 80336 or +91 98XXX XXXXX" autoComplete="tel" />
               </Field>
-              <Field label="PIN code" required error={fields.pincode}>
-                <Input inputMode="numeric" value={form.pincode} onChange={set("pincode")} className="border-[#D4AF37]/40 bg-[#FAF7F0]" placeholder="400020" maxLength={6} autoComplete="postal-code" />
+              <Field label="PIN code" required name="pincode" error={fields.pincode}>
+                <Input
+                  inputMode="numeric"
+                  value={form.pincode}
+                  onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value.replace(/[^\d]/g, "").slice(0, 6) }))}
+                  className="border-[#D4AF37]/40 bg-[#FAF7F0]"
+                  placeholder="400020"
+                  maxLength={6}
+                  autoComplete="postal-code"
+                />
               </Field>
               <div className="sm:col-span-2">
-                <Field label="Full address" required error={fields.address}>
-                  <Textarea value={form.address} onChange={set("address")} rows={2} className="border-[#D4AF37]/40 bg-[#FAF7F0]" placeholder="Flat, building, street, landmark" autoComplete="street-address" />
+                <Field label="Full address" required name="address" error={fields.address}>
+                  <Textarea value={form.address} onChange={set("address")} rows={2} className="border-[#D4AF37]/40 bg-[#FAF7F0]" placeholder="House / flat no., building, street, area, landmark" autoComplete="street-address" />
                 </Field>
               </div>
-              <Field label="City" required error={fields.city}>
+              <Field label="City" required name="city" error={fields.city}>
                 <Input value={form.city} onChange={set("city")} className="border-[#D4AF37]/40 bg-[#FAF7F0]" placeholder="Mumbai" autoComplete="address-level2" />
               </Field>
-              <Field label="State" required error={fields.state}>
+              <Field label="State" required name="state" error={fields.state}>
                 <Input value={form.state} onChange={set("state")} className="border-[#D4AF37]/40 bg-[#FAF7F0]" placeholder="Maharashtra" autoComplete="address-level1" />
               </Field>
               <div className="sm:col-span-2">
@@ -539,14 +586,25 @@ export default function CheckoutView() {
   );
 }
 
-function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
+function Field({ label, required, name, error, children }: { label: string; required?: boolean; name?: string; error?: string; children: React.ReactNode }) {
+  // Push aria-invalid onto the actual input/textarea so shadcn's built-in
+  // destructive ring + border styles light up on the failing field.
+  const child = isValidElement(children)
+    ? cloneElement(children as React.ReactElement<{ "aria-invalid"?: boolean | undefined }>, {
+        "aria-invalid": error ? true : undefined,
+      })
+    : children;
   return (
-    <div>
+    <div data-field={name}>
       <Label className="mb-1.5 block text-xs uppercase tracking-widest text-muted-foreground">
         {label} {required && <span className="text-[#A8862A]">*</span>}
       </Label>
-      {children}
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      {child}
+      {error && (
+        <p role="alert" className="mt-1 text-xs font-medium text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

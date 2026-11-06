@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import { handle, ok, badRequest, tooMany, isEmail, isNonEmpty, isPhone, sanitize } from "@/lib/api-utils";
+import { handle, ok, badRequest, tooMany, isEmail, isNonEmpty, isPhone, sanitize, toAsciiDigits } from "@/lib/api-utils";
+import { ADDRESS_MIN_LENGTH } from "@/lib/validation";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { formatINR } from "@/lib/format";
 import { validateCoupon } from "@/lib/coupons";
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
     const address = sanitize(body.address).slice(0, 300);
     const city = sanitize(body.city).slice(0, 80);
     const state = sanitize(body.state).slice(0, 80);
-    const pincode = sanitize(body.pincode).slice(0, 10);
+    const pincode = toAsciiDigits(sanitize(body.pincode)).slice(0, 10);
     const notes = sanitize(body.notes).slice(0, 500);
     const giftWrap = !!body.giftWrap;
     const giftMessage = sanitize(body.giftMessage).slice(0, 200);
@@ -46,7 +47,8 @@ export async function POST(req: Request) {
     if (!isNonEmpty(customerName, 80)) fields.customerName = "Full name is required";
     if (!isEmail(email)) fields.email = "Valid email is required";
     if (!isPhone(phone)) fields.phone = "Valid phone number is required";
-    if (!isNonEmpty(address, 300) || address.length < 10) fields.address = "Complete address is required";
+    if (!isNonEmpty(address, 300) || address.length < ADDRESS_MIN_LENGTH)
+      fields.address = "Please enter your full delivery address (house no., street, area)";
     if (!isNonEmpty(city, 80)) fields.city = "City is required";
     if (!isNonEmpty(state, 80)) fields.state = "State is required";
     if (!/^\d{6}$/.test(pincode)) fields.pincode = "6-digit PIN code required";

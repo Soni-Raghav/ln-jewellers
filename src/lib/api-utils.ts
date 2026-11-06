@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { isEmailValid, isPhoneValid, toAsciiDigits } from "@/lib/validation";
+
+export { toAsciiDigits };
 
 // ---------- Response helpers ----------
 export function ok<T>(data: T, init?: ResponseInit) {
@@ -45,7 +48,7 @@ export async function handle(fn: () => Promise<Response>): Promise<Response> {
 
 // ---------- Validation helpers ----------
 export function isEmail(v: unknown): v is string {
-  return typeof v === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
+  return typeof v === "string" && isEmailValid(v);
 }
 
 export function isNonEmpty(v: unknown, max = 500): v is string {
@@ -53,7 +56,7 @@ export function isNonEmpty(v: unknown, max = 500): v is string {
 }
 
 export function isPhone(v: unknown): v is string {
-  return typeof v === "string" && /^[+\d][\d\s\-()]{6,18}$/.test(v.trim());
+  return typeof v === "string" && isPhoneValid(v);
 }
 
 export function toInt(v: unknown, fallback: number): number {
