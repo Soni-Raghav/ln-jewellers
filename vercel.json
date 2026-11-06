@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "node scripts/use-postgres-schema.mjs && prisma generate --schema prisma/schema.postgres.prisma && next build",
+  "buildCommand": "node scripts/use-postgres-schema.mjs && prisma generate --schema prisma/schema.postgres.prisma && prisma db push --schema prisma/schema.postgres.prisma && next build",
   "headers": [
     {
       "source": "/images/(.*)",

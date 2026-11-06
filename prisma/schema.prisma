@@ -361,6 +361,12 @@ model StoreSettings {
   whatsappDefaultMessage String @default("") // prefill for general WhatsApp inquiries (empty = built-in copy)
   instagramFeedEnabled  Boolean @default(true)
 
+  // ---- WhatsApp Cloud API (round 15) — the store sends messages server-side,
+  // ---- one click in admin, no wa.me redirect. Empty = graceful wa.me fallback.
+  waCloudToken   String  @default("") // Meta permanent access token (never sent to the browser)
+  waCloudPhoneId String  @default("") // WhatsApp Business phone number id
+  waAutoConfirm  Boolean @default(true) // auto-send "order received" to the customer when an order lands
+
   // ---- Homepage hero + announcement bar (empty = built-in copy) ----
   heroEyebrow           String  @default("")
   heroTitle             String  @default("")

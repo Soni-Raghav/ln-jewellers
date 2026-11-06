@@ -8,8 +8,18 @@ export async function GET() {
     if (!admin) return unauthorized();
     const settings = await db.storeSettings.findUnique({ where: { id: "singleton" } });
     if (!settings) return ok({ settings: null });
-    const { faq, instagramGallery, testimonials, ...rest } = settings;
-    return ok({ settings: { ...rest, faq: JSON.parse(faq || "[]"), instagramGallery: JSON.parse(instagramGallery || "[]"), testimonials: JSON.parse(testimonials || "[]") } });
+    const { faq, instagramGallery, testimonials, waCloudToken, ...rest } = settings;
+    const hasEnvCredentials = !!(process.env.WHATSAPP_CLOUD_TOKEN && process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID);
+    return ok({
+      settings: {
+        ...rest,
+        faq: JSON.parse(faq || "[]"),
+        instagramGallery: JSON.parse(instagramGallery || "[]"),
+        testimonials: JSON.parse(testimonials || "[]"),
+        waCloudTokenMasked: maskToken(waCloudToken),
+        waCloudConnected: !!(waCloudToken && rest.waCloudPhoneId) || hasEnvCredentials,
+      },
+    });
   });
 }
 
@@ -22,6 +32,8 @@ const STRING_FIELDS = [
   "announcementText",
   "googleReviewUrl", "googleMapsUrl", "googleRating", "whatsappDefaultMessage",
   "seoTitle", "seoDescription", "ogImageUrl",
+  // round 15 — WhatsApp Cloud API (the token itself is handled separately below)
+  "waCloudPhoneId",
 ] as const;
 
 // Server-side hygiene: per-field maximum lengths (announcement/SEO short, hero copy
@@ -40,6 +52,7 @@ const STRING_MAX: Record<string, number> = {
   ogImageUrl: 500,
   googleRating: 10,
   whatsappDefaultMessage: 500,
+  waCloudPhoneId: 40,
 };
 
 // Homepage section + connectivity toggles (round 14).
@@ -47,7 +60,15 @@ const BOOLEAN_FIELDS = [
   "whatsappFloatEnabled", "instagramFeedEnabled", "announcementEnabled",
   "showCollectionsSection", "showCategoriesSection", "showNewArrivals", "showBestSellers",
   "showTrending", "showHandmade", "showTestimonials", "showNewsletter",
+  "waAutoConfirm",
 ] as const;
+
+/** Mask a Cloud API token for display — the secret itself never goes to the browser. */
+function maskToken(token: string): string {
+  if (!token) return "";
+  if (token.length <= 8) return "••••";
+  return `${token.slice(0, 4)}••••••••${token.slice(-4)}`;
+}
 
 export async function PATCH(req: Request) {
   return handle(async () => {
@@ -80,6 +101,12 @@ export async function PATCH(req: Request) {
     if (body.appointmentVisitCapacity !== undefined) data.appointmentVisitCapacity = Math.min(10, Math.max(1, Math.round(toFloat(body.appointmentVisitCapacity, 2))));
     if (body.appointmentVideoCapacity !== undefined) data.appointmentVideoCapacity = Math.min(10, Math.max(1, Math.round(toFloat(body.appointmentVideoCapacity, 2))));
     if (body.razorpayEnabled !== undefined) data.razorpayEnabled = !!body.razorpayEnabled;
+    // Cloud API token: written only when the admin actually typed one — an
+    // empty string clears it, undefined keeps whatever is stored. Masked
+    // previews from the GET are never accidentally saved back.
+    if (body.waCloudToken !== undefined) {
+      data.waCloudToken = sanitize(body.waCloudToken).slice(0, 400);
+    }
     if (body.faq !== undefined) {
       const faq = Array.isArray(body.faq)
         ? body.faq.slice(0, 20).map((x: { q?: unknown; a?: unknown }) => ({ q: sanitize(x.q).slice(0, 300), a: sanitize(x.a).slice(0, 2000) }))
@@ -111,7 +138,18 @@ export async function PATCH(req: Request) {
     });
 
     await logAudit(admin.email, "SETTINGS_UPDATE", "StoreSettings", "singleton", { fields: Object.keys(data) });
-    const { faq, instagramGallery, testimonials, ...rest } = settings;
-    return ok({ success: true, settings: { ...rest, faq: JSON.parse(faq || "[]"), instagramGallery: JSON.parse(instagramGallery || "[]"), testimonials: JSON.parse(testimonials || "[]") } });
+    const { faq, instagramGallery, testimonials, waCloudToken, ...rest } = settings;
+    const hasEnvCredentials = !!(process.env.WHATSAPP_CLOUD_TOKEN && process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID);
+    return ok({
+      success: true,
+      settings: {
+        ...rest,
+        faq: JSON.parse(faq || "[]"),
+        instagramGallery: JSON.parse(instagramGallery || "[]"),
+        testimonials: JSON.parse(testimonials || "[]"),
+        waCloudTokenMasked: maskToken(waCloudToken),
+        waCloudConnected: !!(waCloudToken && rest.waCloudPhoneId) || hasEnvCredentials,
+      },
+    });
   });
 }

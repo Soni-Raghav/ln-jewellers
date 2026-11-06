@@ -22,6 +22,7 @@ import {
   Home,
   Info,
   Instagram,
+  KeyRound,
   LayoutGrid,
   Loader2,
   MessageSquareQuote,
@@ -32,6 +33,7 @@ import {
   Store,
   Trash2,
   X,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -91,6 +93,11 @@ const DEFAULT_SETTINGS: StoreSettingsDTO = {
   whatsappFloatEnabled: true,
   whatsappDefaultMessage: "",
   instagramFeedEnabled: true,
+  // round 15 — WhatsApp Cloud API
+  waCloudPhoneId: "",
+  waCloudTokenMasked: "",
+  waCloudConnected: false,
+  waAutoConfirm: true,
   // round 14 — homepage hero + announcement
   heroEyebrow: "",
   heroTitle: "",
@@ -149,6 +156,11 @@ export default function SettingsManager() {
   const [testimonialRows, setTestimonialRows] = useState<TestimonialRow[]>([]);
   const [gallery, setGallery] = useState<string[]>([]);
   const baselineRef = useRef<string>("");
+  // The Cloud API token is deliberately NOT part of the form DTO — the server
+  // only ever returns a masked preview. This field holds a freshly typed token
+  // and is included in the save payload only when non-empty.
+  const [newWaToken, setNewWaToken] = useState("");
+  const [clearWaToken, setClearWaToken] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -220,12 +232,18 @@ export default function SettingsManager() {
             rating: Math.min(5, Math.max(1, Math.round(Number(r.rating) || 5))),
           })),
         instagramGallery: gallery.filter(Boolean),
+        // Cloud API token rides along only when the admin typed a new one or
+        // explicitly asked to clear the stored one.
+        ...(newWaToken.trim() ? { waCloudToken: newWaToken.trim() } : {}),
+        ...(clearWaToken ? { waCloudToken: "" } : {}),
       };
       const res = await api<{ success: boolean; settings: StoreSettingsDTO }>("/api/admin/settings", {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
       toast.success("Store settings saved — the storefront updates instantly.");
+      setNewWaToken("");
+      setClearWaToken(false);
       const s = res.settings;
       // Push the fresh settings into the global store so the navbar
       // announcement, WhatsApp float and other shell-level UI react live
@@ -505,6 +523,93 @@ export default function SettingsManager() {
                   <div className="rounded-md border border-dashed border-[#D4AF37]/40 bg-[#FBF9F4] p-4 text-xs leading-relaxed text-[#8A8375]">
                     <p className="mb-1 font-medium text-[#1C1A16]">Tip — getting the Google review link</p>
                     In your Google Business Profile choose &ldquo;Ask for reviews&rdquo; and paste the link here. The rating + count are shown next to it; update them after new reviews arrive.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-[#EAE2D3] bg-white xl:col-span-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 font-serif text-lg text-[#1C1A16]">
+                  <Zap className="size-4 text-[#D4AF37]" aria-hidden />
+                  WhatsApp Cloud API — send in one click
+                </CardTitle>
+                <CardDescription>
+                  Lets the atelier deliver order confirmations &amp; status updates straight from the admin panel — no WhatsApp app opens, nothing to press. Customers get messages from your own number.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-4">
+                  <div
+                    className={cn(
+                      "flex items-center justify-between rounded-md border px-4 py-3",
+                      form.waCloudConnected ? "border-[#25D366]/40 bg-[#25D366]/5" : "border-amber-300 bg-amber-50"
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <p className={cn("text-sm font-medium", form.waCloudConnected ? "text-[#0e6e3a]" : "text-amber-800")}>
+                        {form.waCloudConnected ? "Connected — one-click delivery is on" : "Not connected — messages open WhatsApp instead"}
+                      </p>
+                      {form.waCloudTokenMasked && (
+                        <p className="mt-0.5 truncate font-mono text-[11px] text-[#8A8375]">Token {form.waCloudTokenMasked}</p>
+                      )}
+                    </div>
+                    {form.waCloudConnected && <Zap className="size-5 shrink-0 text-[#25D366]" aria-hidden />}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-[#5A544A]">Phone number ID</Label>
+                    <Input
+                      value={form.waCloudPhoneId}
+                      onChange={(e) => set("waCloudPhoneId", e.target.value.replace(/\D/g, ""))}
+                      placeholder="123456789012345"
+                      maxLength={40}
+                      className="border-[#E0D9C8] bg-white font-mono"
+                    />
+                    <p className="text-[11px] text-[#B0A88F]">From Meta for Developers → WhatsApp → API Setup. Digits only.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5 text-xs text-[#5A544A]">
+                      <KeyRound className="size-3" aria-hidden /> Access token {form.waCloudTokenMasked && <span className="font-mono text-[10px] text-[#B0A88F]">(stored: {form.waCloudTokenMasked})</span>}
+                    </Label>
+                    <Input
+                      type="password"
+                      value={newWaToken}
+                      onChange={(e) => {
+                        setNewWaToken(e.target.value.trim());
+                        setClearWaToken(false);
+                      }}
+                      placeholder={form.waCloudTokenMasked ? "Paste a new token to replace it" : "Paste your permanent access token"}
+                      autoComplete="off"
+                      className="border-[#E0D9C8] bg-white font-mono"
+                    />
+                    <p className="text-[11px] text-[#B0A88F]">Stored securely on the server — it is never shown or sent to the browser again. Create one in Meta for Developers → WhatsApp → API Setup.</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <ToggleRow
+                    checked={form.waAutoConfirm}
+                    onChange={(v) => set("waAutoConfirm", v)}
+                    title="Auto-send order confirmation"
+                    description={form.waAutoConfirm ? "Every new order instantly gets an \u201corder received\u201d receipt on the customer's WhatsApp." : "Off — you send the first message yourself from the Orders panel."}
+                    ariaLabel="Toggle automatic WhatsApp order confirmation"
+                  />
+                  {form.waCloudTokenMasked && (
+                    <ToggleRow
+                      checked={clearWaToken}
+                      onChange={(v) => {
+                        setClearWaToken(v);
+                        if (v) setNewWaToken("");
+                      }}
+                      title="Remove the stored token"
+                      description={clearWaToken ? "The token will be deleted when you press Save all changes." : "Disconnect the Cloud API — sending falls back to opening WhatsApp."}
+                      ariaLabel="Toggle clearing the stored WhatsApp token"
+                    />
+                  )}
+                  <div className="rounded-md border border-dashed border-[#D4AF37]/40 bg-[#FBF9F4] p-4 text-xs leading-relaxed text-[#8A8375]">
+                    <p className="mb-1 font-medium text-[#1C1A16]">How to connect (free to set up)</p>
+                    1. Create a free app at <span className="font-medium text-[#7A5E14]">developers.facebook.com</span> and add the WhatsApp product.
+                    <br />2. Copy the <span className="font-medium text-[#7A5E14]">Phone number ID</span> and a <span className="font-medium text-[#7A5E14]">permanent access token</span> from API Setup.
+                    <br />3. Paste both here and save. Utility messages cost a small per-conversation fee (in India, conversations opened by you are billed by Meta; replies within 24h of a customer message are free).
                   </div>
                 </div>
               </CardContent>

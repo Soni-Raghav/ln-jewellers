@@ -82,7 +82,7 @@ export default function CheckoutView() {
         <p className="mx-auto mt-3 max-w-md rounded-lg border border-[#25D366]/30 bg-[#25D366]/8 px-4 py-3 text-sm leading-relaxed text-[#128C4B]">
           <MessageCircle className="mr-1.5 inline h-4 w-4 align-[-2px]" />
           Our concierge will <strong>WhatsApp you on {form.phone.trim()}</strong> shortly to confirm payment and
-          delivery — you don't need to message us first.
+          delivery.
         </p>
         <div className="mx-auto mt-10 max-w-md rounded-xl border border-[#D4AF37]/25 bg-white p-6 text-left">
           <h2 className="font-serif text-lg">Order {placed.orderNumber}</h2>

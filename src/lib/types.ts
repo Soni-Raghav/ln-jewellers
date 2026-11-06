@@ -193,6 +193,11 @@ export interface StoreSettingsDTO {
   whatsappFloatEnabled: boolean;
   whatsappDefaultMessage: string; // prefill for general WhatsApp inquiries (empty = built-in copy)
   instagramFeedEnabled: boolean;
+  // ---- WhatsApp Cloud API (round 15) — server-side send, one click in admin ----
+  waCloudPhoneId: string;
+  waCloudTokenMasked: string; // token never leaves the server — masked preview only
+  waCloudConnected: boolean; // Cloud API usable (DB or env credentials present)
+  waAutoConfirm: boolean; // auto-send "order received" to the customer on placement
   // ---- Homepage hero + announcement (empty = built-in copy) ----
   heroEyebrow: string;
   heroTitle: string;

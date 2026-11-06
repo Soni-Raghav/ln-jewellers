@@ -5,6 +5,7 @@ import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { formatINR } from "@/lib/format";
 import { validateCoupon } from "@/lib/coupons";
 import { getSession } from "@/lib/auth";
+import { autoConfirmOrder } from "@/lib/wa-send";
 import { Prisma } from "@prisma/client";
 
 interface IncomingItem {
@@ -289,6 +290,23 @@ export async function POST(req: Request) {
 
           return created;
         });
+
+      // ---- Concierge auto-confirmation: the STORE messages the customer ----
+      // Delivers the "order received" receipt to the number the customer
+      // entered, straight through the WhatsApp Cloud API (no app to open,
+      // nothing for the shopper to press). No-ops silently when the Cloud API
+      // is not connected or the auto-confirm switch is off in admin Settings.
+      await autoConfirmOrder(
+        {
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          phone: order.phone,
+          items: order.items.map((it) => ({ name: it.name, variantName: it.variantName, quantity: it.quantity, lineTotal: it.lineTotal })),
+          total: order.total,
+          paymentStatus: order.paymentStatus,
+        },
+        settings
+      );
 
       return ok({
         success: true,

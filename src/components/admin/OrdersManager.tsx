@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download, XCircle, ShieldCheck, Gift, ReceiptText, MessageCircle } from "lucide-react";
+import { Boxes, CheckCircle2, Eye, Loader2, Search, Send, Sparkles, PenLine, Download, XCircle, ShieldCheck, Gift, ReceiptText, MessageCircle, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import {
@@ -43,7 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { OrderDTO, Paginated } from "@/lib/types";
-import { formatINR, formatDate, engravingFontLabel, waCustomerLink, waOrderUpdateMessage, statusToUpdateKind, type OrderUpdateKind, type WaOrderUpdate } from "@/lib/format";
+import { formatINR, formatDate, engravingFontLabel, statusToUpdateKind, type OrderUpdateKind } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ORDER_STATUSES, PAYMENT_STATUSES, api, errMsg, humanize, isAuthError, qs, useDebounced } from "./api";
 
@@ -67,24 +67,17 @@ const UPDATE_ACTIONS: { kind: OrderUpdateKind; label: string }[] = [
   { kind: "CANCELLED", label: "Cancelled" },
 ];
 
-function toWaUpdate(o: OrderDTO, googleReviewUrl?: string | null): WaOrderUpdate {
-  return {
-    orderNumber: o.orderNumber,
-    customerName: o.customerName,
-    items: o.items.map((it) => ({ name: it.name, variantName: it.variantName, quantity: it.quantity, lineTotal: it.lineTotal })),
-    total: o.total,
-    paymentStatus: o.paymentStatus,
-    googleReviewUrl,
-  };
+function waLabel(kind: OrderUpdateKind): string {
+  return UPDATE_ACTIONS.find((a) => a.kind === kind)?.label ?? "update";
 }
 
-function waUpdateHref(o: OrderDTO, kind: OrderUpdateKind, googleReviewUrl?: string | null): string {
-  return waCustomerLink(o.phone, waOrderUpdateMessage(kind, toWaUpdate(o, googleReviewUrl)));
+interface WaCloudState {
+  connected: boolean;
+  autoConfirm: boolean;
 }
 
 export default function OrdersManager() {
   const navigate = useApp((s) => s.navigate);
-  const settings = useApp((s) => s.settings);
   const [qInput, setQInput] = useState("");
   const q = useDebounced(qInput, 350);
   const [status, setStatus] = useState("");
@@ -93,6 +86,8 @@ export default function OrdersManager() {
   const [data, setData] = useState<Paginated<OrderDTO> | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cloud, setCloud] = useState<WaCloudState | null>(null);
+  const [waBusy, setWaBusy] = useState<string | null>(null);
 
   const [detail, setDetail] = useState<OrderDTO | null>(null);
   const [cancelTarget, setCancelTarget] = useState<OrderDTO | null>(null);
@@ -103,6 +98,49 @@ export default function OrdersManager() {
     setDetail(null);
     navigate("invoice", { orderNumber, orderEmail: email });
   };
+
+  useEffect(() => {
+    // Does the atelier deliver in one tap (Cloud API connected)? Drives the
+    // button behaviour and the hint in the detail dialog.
+    api<WaCloudState>("/api/admin/whatsapp/status")
+      .then(setCloud)
+      .catch(() => setCloud({ connected: false, autoConfirm: false }));
+  }, []);
+
+  /** ONE-CLICK concierge send: the server delivers the update through the
+   *  WhatsApp Cloud API — no app opens, nothing for the admin to press. When
+   *  the Cloud API is not connected we fall back to opening wa.me so the
+   *  message still goes out. */
+  async function sendWa(o: OrderDTO, kind: OrderUpdateKind) {
+    setWaBusy(`${o.id}:${kind}`);
+    try {
+      const res = await api<{
+        delivered: boolean;
+        via?: string;
+        fallbackUrl?: string;
+        reason?: string;
+        error?: string;
+      }>("/api/admin/whatsapp/send", { method: "POST", body: JSON.stringify({ orderId: o.id, kind }) });
+
+      if (res.delivered) {
+        toast.success(`Sent to ${o.phone}`, {
+          description: `“${waLabel(kind)}” update delivered from the atelier's WhatsApp.`,
+          icon: <CheckCircle2 className="text-[#25D366]" />,
+        });
+      } else if (res.fallbackUrl) {
+        window.open(res.fallbackUrl, "_blank", "noopener");
+        toast.info("Opened WhatsApp with the message ready — press send there.", {
+          description: res.reason ?? "Connect the WhatsApp Cloud API in Settings for true one-tap delivery.",
+        });
+      } else {
+        toast.error(res.error ?? "Could not send the WhatsApp message.");
+      }
+    } catch (e) {
+      if (!isAuthError(e)) toast.error(errMsg(e));
+    } finally {
+      setWaBusy(null);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -132,13 +170,13 @@ export default function OrdersManager() {
     try {
       await api(`/api/admin/orders/${order.id}`, { method: "PATCH", body: JSON.stringify(patch) });
       // After moving an order forward, offer the matching concierge message —
-      // one tap opens WhatsApp to the customer with the right update pre-filled.
+      // one click sends it straight to the customer via the Cloud API.
       const waAction =
         patch.status && patch.status !== "CANCELLED"
           ? {
               action: {
-                label: "WhatsApp customer",
-                onClick: () => window.open(waUpdateHref(order, statusToUpdateKind(patch.status!), settings?.googleReviewUrl), "_blank", "noopener"),
+                label: "Send WhatsApp update",
+                onClick: () => void sendWa(order, statusToUpdateKind(patch.status!)),
               },
             }
           : undefined;
@@ -362,16 +400,21 @@ export default function OrdersManager() {
                       </TableCell>
                       <TableCell className="pr-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <a
-                            href={waUpdateHref(o, statusToUpdateKind(o.status), settings?.googleReviewUrl)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex size-8 items-center justify-center rounded-md text-[#5A544A] transition-colors hover:bg-[#25D366]/10 hover:text-[#128C4B]"
-                            title="WhatsApp the customer a status update"
-                            aria-label={`WhatsApp customer about order ${o.orderNumber}`}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-[#5A544A] transition-colors hover:bg-[#25D366]/10 hover:text-[#128C4B]"
+                            disabled={waBusy !== null}
+                            onClick={() => void sendWa(o, statusToUpdateKind(o.status))}
+                            title={cloud?.connected ? "Send the status update now — delivered in one click" : "Open WhatsApp with the update pre-filled (connect the Cloud API for one-click delivery)"}
+                            aria-label={`Send ${waLabel(statusToUpdateKind(o.status))} WhatsApp update for order ${o.orderNumber}`}
                           >
-                            <MessageCircle className="size-4" aria-hidden />
-                          </a>
+                            {waBusy === `${o.id}:${statusToUpdateKind(o.status)}` ? (
+                              <Loader2 className="size-4 animate-spin" aria-hidden />
+                            ) : (
+                              <MessageCircle className="size-4" aria-hidden />
+                            )}
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -445,30 +488,57 @@ export default function OrdersManager() {
               <section className="rounded-md border border-[#25D366]/40 bg-[#25D366]/5 p-3">
                 <p className="flex items-center gap-1.5 text-sm font-medium text-[#128C4B]">
                   <MessageCircle className="size-4" aria-hidden /> WhatsApp the customer
+                  <span
+                    className={cn(
+                      "ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      cloud?.connected ? "bg-[#25D366]/15 text-[#0e6e3a]" : "bg-amber-100 text-amber-800"
+                    )}
+                  >
+                    {cloud === null ? (
+                      "checking…"
+                    ) : cloud.connected ? (
+                      <>
+                        <Zap className="size-3" aria-hidden /> One-click delivery on
+                      </>
+                    ) : (
+                      "Opens WhatsApp instead"
+                    )}
+                  </span>
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-[#5A544A]">
-                  One tap opens WhatsApp with a ready message to <span className="font-medium">{detail.phone}</span> — review it and press send. The highlighted one matches this order's current status.
+                  {cloud?.connected ? (
+                    <>
+                      One click delivers the message from the atelier's WhatsApp to{" "}
+                      <span className="font-medium">{detail.phone}</span> — no app opens, nothing to press. The highlighted one matches this order's status.
+                    </>
+                  ) : (
+                    <>
+                      One tap opens WhatsApp with a ready message to <span className="font-medium">{detail.phone}</span> — review it and press send. Connect the{" "}
+                      <span className="font-medium">WhatsApp Cloud API in Settings</span> for true one-click delivery.
+                    </>
+                  )}
                 </p>
                 <div className="mt-2.5 flex flex-wrap gap-2">
                   {UPDATE_ACTIONS.map(({ kind, label }) => {
                     const suggested = statusToUpdateKind(detail.status) === kind;
+                    const busy = waBusy === `${detail.id}:${kind}`;
                     return (
-                      <a
+                      <button
                         key={kind}
-                        href={waUpdateHref(detail, kind, settings?.googleReviewUrl)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        type="button"
+                        disabled={waBusy !== null}
+                        onClick={() => void sendWa(detail, kind)}
                         className={cn(
-                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-60",
                           suggested
                             ? "border-[#25D366] bg-[#25D366] text-white hover:bg-[#1fb857]"
                             : "border-[#E0D9C8] bg-white text-[#5A544A] hover:border-[#25D366]/60 hover:text-[#128C4B]"
                         )}
                       >
-                        <MessageCircle className="size-3" aria-hidden />
+                        {busy ? <Loader2 className="size-3 animate-spin" aria-hidden /> : <MessageCircle className="size-3" aria-hidden />}
                         {label}
                         {suggested && <span className="sr-only">(suggested for current status)</span>}
-                      </a>
+                      </button>
                     );
                   })}
                 </div>

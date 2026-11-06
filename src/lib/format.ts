@@ -215,10 +215,17 @@ export function waCartInquiry(
 /** wa.me link pointing at a CUSTOMER's phone — normalises Indian formats
  *  (10 digits, leading 0, or already with 91). Unicode digits accepted. */
 export function waCustomerLink(phone: string, message: string): string {
+  return `https://wa.me/${normalizeWaDigits(phone)}?text=${encodeURIComponent(message)}`;
+}
+
+/** Normalise a customer phone to WhatsApp Cloud API format: digits only with a
+ *  country code ("919876543210"). Accepts unicode digits, +91, leading 0,
+ *  spaces/dashes. Returns "" when nothing usable remains. */
+export function normalizeWaDigits(phone: string): string {
   let digits = toAsciiDigits(phone || "").replace(/\D/g, "");
   if (digits.length === 11 && digits.startsWith("0")) digits = `91${digits.slice(1)}`;
   if (digits.length === 10) digits = `91${digits}`;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  return digits;
 }
 
 export type OrderUpdateKind = "RECEIVED" | "CONFIRMED" | "IN_PRODUCTION" | "SHIPPED" | "DELIVERED" | "CANCELLED";

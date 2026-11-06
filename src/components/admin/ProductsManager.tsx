@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Box,
   Copy,
+  Download,
+  FileSpreadsheet,
   Gem,
   Loader2,
   Pencil,
@@ -11,6 +13,7 @@ import {
   Search,
   Send,
   Undo2,
+  Upload,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -48,6 +51,7 @@ import type { Paginated, Product } from "@/lib/types";
 import { formatINR, netPrice, stockLabel } from "@/lib/format";
 import { api, errMsg, isAuthError, qs, useDebounced } from "./api";
 import ProductForm from "./ProductForm";
+import ProductImportDialog from "./ProductImportDialog";
 
 const STATUS_FILTERS = [
   { value: "", label: "All statuses" },
@@ -70,6 +74,7 @@ export default function ProductsManager() {
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -172,6 +177,26 @@ export default function ProductsManager() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-[#D4AF37]/50 text-[#7A5E14] hover:bg-[#D4AF37]/10"
+            onClick={() => window.open("/api/admin/products/export", "_blank")}
+            title="Download the whole catalog as Excel — the file re-imports to bulk-update"
+          >
+            <Download className="mr-2 size-4" aria-hidden />
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-[#D4AF37]/50 text-[#7A5E14] hover:bg-[#D4AF37]/10"
+            onClick={() => setImportOpen(true)}
+            title="Bulk-add products from Excel, CSV or Google Sheets"
+          >
+            <Upload className="mr-2 size-4" aria-hidden />
+            Import
+          </Button>
           <Button
             className="bg-[#171717] text-white hover:bg-[#2A2824]"
             onClick={() => {
@@ -394,6 +419,9 @@ export default function ProductsManager() {
         product={editProduct}
         onSaved={() => void load()}
       />
+
+      {/* ---------- Bulk import (Excel / CSV / Google Sheets) ---------- */}
+      <ProductImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => void load()} />
 
       {/* ---------- Delete confirm ---------- */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
