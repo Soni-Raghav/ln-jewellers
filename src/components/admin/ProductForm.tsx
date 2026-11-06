@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronUp, Loader2, Plus, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Box, Check, ChevronDown, ChevronUp, ImagePlus, Loader2, Plus, Trash2, Upload, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Category, Collection, Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ApiError, PRODUCT_IMAGE_LIBRARY, PRODUCT_STATUSES, api, errMsg, isAuthError } from "./api";
+import StudioShotDialog from "./StudioShotDialog";
 
 interface VariantRow {
   name: string;
@@ -63,6 +64,10 @@ interface FormState {
   status: string;
   tags: string;
   model3dUrl: string;
+  show3dView: boolean;
+  /** undefined = unchanged · string = new .glb upload pending save · null = remove the stored model */
+  model3dData: string | null | undefined;
+  model3dName: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -93,7 +98,52 @@ const EMPTY_FORM: FormState = {
   status: "DRAFT",
   tags: "",
   model3dUrl: "",
+  show3dView: false,
+  model3dData: undefined,
+  model3dName: "",
 };
+
+const MAX_MODEL_BYTES = 2.5 * 1024 * 1024; // .glb binary cap (keeps the save request under serverless limits)
+
+/** Device photos are resized + re-compressed to keep the catalog (and the
+ *  request payload) light — ~1000 px JPEG lands around 60–150 KB. */
+async function compressImageFile(file: File, maxDim = 1000, quality = 0.72): Promise<string> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error(`Could not read “${file.name}” — unsupported image file.`));
+      el.src = objectUrl;
+    });
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas is unavailable in this browser.");
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+/** Read a .glb file as raw base64 (without the data: prefix). */
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = String(reader.result || "");
+      const comma = res.indexOf(",");
+      resolve(comma >= 0 ? res.slice(comma + 1) : res);
+    };
+    reader.onerror = () => reject(new Error("Could not read the file."));
+    reader.readAsDataURL(file);
+  });
+}
 
 const EMPTY_VARIANT: VariantRow = { name: "", size: "", priceDelta: "0", stock: "0" };
 
@@ -112,6 +162,11 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
   const [images, setImages] = useState<string[]>([]);
   const [variantRows, setVariantRows] = useState<VariantRow[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [studioFor, setStudioFor] = useState<string | null>(null);
+  const [readingModel, setReadingModel] = useState(false);
+
+  const imageFileRef = useRef<HTMLInputElement | null>(null);
+  const modelFileRef = useRef<HTMLInputElement | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -154,6 +209,9 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
         status: product.status,
         tags: (product.tags ?? []).join(", "),
         model3dUrl: product.model3dUrl ?? "",
+        show3dView: product.show3dView,
+        model3dData: undefined,
+        model3dName: "",
       });
       setImages([...(product.images ?? [])]);
       // Duplicate mode (id === "") carries the source piece's variants over as editable rows
@@ -209,6 +267,51 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
     });
   }
 
+  // ---------- uploads ----------
+  async function handleImageFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const room = 8 - images.length;
+    if (room <= 0) {
+      toast.error("The gallery is full — 8 images max.");
+      return;
+    }
+    const picked = Array.from(files).slice(0, room);
+    try {
+      const compressed = await Promise.all(picked.map((f) => compressImageFile(f)));
+      setImages((prev) => [...prev, ...compressed].slice(0, 8));
+      toast.success(`${compressed.length} image${compressed.length > 1 ? "s" : ""} added.`, {
+        description: "Photos are auto-optimised for the web. Drag the first one to the top to make it the cover.",
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not read the images.");
+    }
+  }
+
+  async function handleModelFile(file: File | undefined | null) {
+    if (!file) return;
+    if (!/\.glb$/i.test(file.name)) {
+      toast.error("Please choose a .glb file", { description: "Export your CAD design as binary glTF (.glb)." });
+      return;
+    }
+    if (file.size > MAX_MODEL_BYTES) {
+      toast.error("The .glb file is larger than 2.5 MB", {
+        description: "Decimate the mesh or compress it (Blender → glTF export, Draco) and try again.",
+      });
+      return;
+    }
+    setReadingModel(true);
+    try {
+      const b64 = await readFileAsBase64(file);
+      set("model3dData", b64);
+      set("model3dName", file.name);
+      toast.success(`3D model “${file.name}” attached.`, { description: "It uploads to the atelier vault when you save." });
+    } catch {
+      toast.error("Could not read the file.");
+    } finally {
+      setReadingModel(false);
+    }
+  }
+
   // ---------- variants (create only) ----------
   function setVariant(i: number, patch: Partial<VariantRow>) {
     setVariantRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -242,6 +345,13 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
       collectionId: form.collectionId || null,
       images,
       model3dUrl: form.model3dUrl.trim(),
+      show3dView: form.show3dView,
+      ...(form.model3dData !== undefined
+        ? {
+            model3dData: form.model3dData, // string = upload · null = remove
+            ...(form.model3dData ? { model3dName: form.model3dName.trim() || "model.glb" } : {}),
+          }
+        : {}),
       material: form.material.trim() || "22K Gold",
       purity: form.purity.trim(),
       color: form.color.trim(),
@@ -492,15 +602,7 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
                 className="border-[#E0D9C8] bg-white"
               />
             </Field>
-            <Field label="3D model URL" hint="Optional .glb/.gltf">
-              <Input
-                value={form.model3dUrl}
-                onChange={(e) => set("model3dUrl", e.target.value)}
-                placeholder="/models/ring.glb"
-                className="border-[#E0D9C8] bg-white"
-              />
-            </Field>
-            <Field label="Craftsmanship" className="sm:col-span-2">
+            <Field label="Craftsmanship" className="sm:col-span-3">
               <Textarea
                 value={form.craftsmanship}
                 onChange={(e) => set("craftsmanship", e.target.value)}
@@ -518,6 +620,132 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
                 className="border-[#E0D9C8] bg-white"
               />
             </Field>
+          </section>
+
+          <Separator className="bg-[#EAE2D3]" />
+
+          {/* ---------- 3D view ---------- */}
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Box className="size-4 text-[#D4AF37]" aria-hidden />
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-[#8A8375]">3D view</p>
+                  <p className="text-[11px] text-[#B0A88F]">
+                    Interactive “View in 3D” tab on the product page — enable it once you attach a model for this piece.
+                  </p>
+                </div>
+              </div>
+              <SwitchField
+                label={form.show3dView ? "3D view enabled" : "3D view disabled"}
+                checked={form.show3dView}
+                onChange={(v) => set("show3dView", v)}
+              />
+            </div>
+
+            {form.show3dView && (
+              <div className="space-y-3 rounded-md border border-[#EAE2D3] bg-[#FBF9F4] p-3">
+                {/* model status rows */}
+                {form.model3dData === null && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    <span>The uploaded model will be removed when you save.</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 border-amber-300 text-amber-800 hover:bg-amber-100"
+                      onClick={() => set("model3dData", undefined)}
+                    >
+                      Undo
+                    </Button>
+                  </div>
+                )}
+                {typeof form.model3dData === "string" && form.model3dData.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-3 py-2 text-sm text-[#7A5E14]">
+                    <span className="flex items-center gap-2">
+                      <Box className="size-4" aria-hidden /> Attached: <strong>{form.model3dName || "model.glb"}</strong>
+                      <span className="text-xs opacity-70">· uploads when you save</span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-7"
+                      aria-label="Remove attached model"
+                      onClick={() => {
+                        set("model3dData", undefined);
+                        set("model3dName", "");
+                      }}
+                    >
+                      <X className="size-3.5" aria-hidden />
+                    </Button>
+                  </div>
+                )}
+                {form.model3dData === undefined && !!product?.model3dName && isEdit && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-[#EAE2D3] bg-white px-3 py-2 text-sm">
+                    <span className="flex items-center gap-2 text-[#1C1A16]">
+                      <Box className="size-4 text-[#D4AF37]" aria-hidden /> Current model: <strong>{product.model3dName}</strong>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 border-red-200 text-red-600 hover:bg-red-50"
+                      onClick={() => set("model3dData", null)}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden /> Remove
+                    </Button>
+                  </div>
+                )}
+
+                {/* upload + url */}
+                <div className="flex flex-wrap items-end gap-2">
+                  <input
+                    ref={modelFileRef}
+                    type="file"
+                    accept=".glb,model/gltf-binary"
+                    hidden
+                    onChange={(e) => {
+                      void handleModelFile(e.target.files?.[0]);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={readingModel}
+                    onClick={() => modelFileRef.current?.click()}
+                    className="border-[#D4AF37]/50 text-[#7A5E14] hover:bg-[#D4AF37]/10"
+                  >
+                    {readingModel ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Upload className="size-4" aria-hidden />}
+                    {readingModel ? "Reading file…" : "Upload .glb model"}
+                  </Button>
+                  <div className="min-w-[220px] flex-1">
+                    <Input
+                      value={form.model3dUrl}
+                      onChange={(e) => set("model3dUrl", e.target.value)}
+                      placeholder="or paste a model URL · /models/ring.glb"
+                      className="h-9 border-[#E0D9C8] bg-white text-xs"
+                      aria-label="External 3D model URL"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[11px] leading-relaxed text-[#B0A88F]">
+                  Export your CAD design as binary glTF (<strong>.glb</strong>) — Blender, Rhino glTF-Binary exporter,
+                  MatrixGold and 3Design all support it. Max 2.5 MB; the uploaded file wins when both a file and a URL
+                  are set. The model is served from <code className="rounded bg-[#F3EFE5] px-1">/api/models/…</code> only
+                  while the piece is published.
+                </p>
+                {form.show3dView && !form.model3dUrl.trim() && form.model3dData === undefined && !product?.model3dName && (
+                  <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    No model attached yet — until you upload a .glb, the product page will show the built-in atelier
+                    stage instead of your piece.
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           <Separator className="bg-[#EAE2D3]" />
@@ -562,16 +790,38 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
 
           {/* ---------- Images ---------- */}
           <section className="space-y-3">
-            <p className="text-xs font-medium uppercase tracking-wider text-[#8A8375]">
-              Images <span className="normal-case text-[#B0A88F]">(first image is the cover · max 8)</span>
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-[#8A8375]">
+                Images <span className="normal-case text-[#B0A88F]">(first image is the cover · max 8)</span>
+              </p>
+              <input
+                ref={imageFileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={(e) => {
+                  void handleImageFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => imageFileRef.current?.click()}
+                className="border-[#D4AF37]/50 text-[#7A5E14] hover:bg-[#D4AF37]/10"
+              >
+                <ImagePlus className="size-4" aria-hidden /> Upload from device
+              </Button>
+            </div>
             {images.length === 0 && (
               <p className="rounded-md border border-dashed border-[#E0D9C8] px-3 py-4 text-center text-sm text-[#B0A88F]">
-                No images yet — pick from the gallery below.
+                No images yet — upload from your device or pick from the gallery below.
               </p>
             )}
             {images.map((url, i) => (
-              <div key={`${url}-${i}`} className="flex items-center gap-2">
+              <div key={`${url.slice(0, 48)}-${i}`} className="flex items-center gap-2">
                 <img
                   src={url}
                   alt={`Image ${i + 1}`}
@@ -579,12 +829,25 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
                 />
                 <Input
                   value={url}
+                  readOnly={url.startsWith("data:")}
                   onChange={(e) =>
                     setImages((prev) => prev.map((u, idx) => (idx === i ? e.target.value : u)))
                   }
                   className="flex-1 border-[#E0D9C8] bg-white text-xs"
-                  aria-label={`Image URL ${i + 1}`}
+                  aria-label={`Image ${i + 1}${url.startsWith("data:") ? " (uploaded file)" : " URL"}`}
+                  title={url}
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-8 shrink-0 border-[#D4AF37]/50 text-[#7A5E14] hover:bg-[#D4AF37]/10"
+                  title="Generate an AI studio shot of this photo"
+                  aria-label={`Generate AI studio shot for image ${i + 1}`}
+                  onClick={() => setStudioFor(url)}
+                >
+                  <Wand2 className="size-4" aria-hidden />
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -736,6 +999,26 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
             </Button>
           </DialogFooter>
         </form>
+
+        {/* ---------- AI studio photoshoot ---------- */}
+        <StudioShotDialog
+          open={!!studioFor}
+          onOpenChange={(o) => {
+            if (!o) setStudioFor(null);
+          }}
+          image={studioFor ?? ""}
+          productName={form.name || "this piece"}
+          onUse={(dataUrl, m) => {
+            if (!studioFor) return;
+            if (m === "add") {
+              setImages((prev) => (prev.length >= 8 ? prev : [...prev, dataUrl]));
+              toast.success("Studio shot added to the gallery.");
+            } else {
+              setImages((prev) => prev.map((u, idx) => (u === studioFor ? dataUrl : u)));
+              toast.success("Original photo replaced with the studio shot.");
+            }
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

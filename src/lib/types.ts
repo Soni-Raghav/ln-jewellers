@@ -58,8 +58,10 @@ export interface Product {
   category?: Category;
   collectionId?: string | null;
   collection?: Collection;
-  images: string[]; // parsed from JSON
+  images: string[]; // parsed from JSON (http urls or data: urls)
   model3dUrl?: string | null;
+  show3dView: boolean; // admin toggle — the interactive 3D tab is offered on the product page
+  model3dName?: string | null; // original file name when a GLB was uploaded from the admin
   material: string;
   purity?: string | null;
   color?: string | null;

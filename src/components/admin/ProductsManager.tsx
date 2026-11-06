@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  Box,
   Copy,
   Gem,
   Loader2,
@@ -271,6 +272,14 @@ export default function ProductsManager() {
                             {p.bestSeller && <TinyFlag label="Best" />}
                             {p.trending && <TinyFlag label="Trending" />}
                             {p.handmade && <TinyFlag label="Handmade" />}
+                            {p.show3dView && (
+                              <span
+                                className="inline-flex items-center gap-0.5 rounded-full border border-[#D4AF37]/60 bg-[#D4AF37]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#7A5E14]"
+                                title="3D view enabled — a “View in 3D” tab shows on the product page"
+                              >
+                                <Box className="size-3" aria-hidden /> 3D
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>{productStatusBadge(p.status)}</TableCell>

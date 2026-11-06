@@ -1,0 +1,286 @@
+"use client";
+
+/**
+ * StudioShotDialog — AI "studio photoshoot" generator for the admin panel.
+ *
+ * Takes any jewellery photo (device upload, gallery image or URL) and produces
+ * a professional studio product photograph of the SAME article — the prompt on
+ * the server is engineered to keep the physical design of the piece identical
+ * and only re-stage the presentation (background, lighting, focus).
+ *
+ * Flow: pick a look → Generate (15–50 s) → compare side-by-side →
+ * add the render as a new gallery image or replace the original photo.
+ */
+
+import { useEffect, useRef, useState } from "react";
+import { Check, Loader2, RefreshCcw, Sparkles, Wand2, X } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { api, errMsg, isAuthError } from "./api";
+
+export type StudioStyleKey = "CLASSIC_WHITE" | "LUXURY_BLACK" | "MARBLE_SILK" | "BOUTIQUE_WARM" | "FLOAT_GOLD";
+
+const STYLE_PRESETS: { key: StudioStyleKey; label: string; blurb: string; swatch: string }[] = [
+  { key: "CLASSIC_WHITE", label: "Classic White", blurb: "Clean catalogue white, soft even light", swatch: "linear-gradient(150deg,#FFFFFF,#EDEDED)" },
+  { key: "LUXURY_BLACK", label: "Luxury Black", blurb: "Dramatic spotlight on deep black", swatch: "linear-gradient(150deg,#3A3A3A,#0A0A0A)" },
+  { key: "MARBLE_SILK", label: "Marble & Silk", blurb: "Ivory marble with flowing silk", swatch: "linear-gradient(150deg,#F7F1E5,#E5D9C3)" },
+  { key: "BOUTIQUE_WARM", label: "Boutique Warm", blurb: "Velvet cushion, golden bokeh glow", swatch: "linear-gradient(150deg,#F3DFC0,#D9B57C)" },
+  { key: "FLOAT_GOLD", label: "Float Gold", blurb: "Floating on a champagne-gold glow", swatch: "linear-gradient(150deg,#F6E7C6,#D4AF37)" },
+];
+
+const SIZE_OPTIONS = [
+  { value: "1024x1024", label: "Square 1:1" },
+  { value: "864x1152", label: "Portrait 3:4" },
+];
+
+/** Convert any same-origin/relative image path into a base64 data URL so the
+ *  generation API always receives bytes it can read. */
+async function toDataUrl(src: string): Promise<string> {
+  if (/^data:image\//i.test(src)) return src;
+  const res = await fetch(src);
+  if (!res.ok) throw new Error("Could not read the source image");
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Could not read the source image"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+interface StudioShotDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Source image (data URL, /… path or full URL) */
+  image: string;
+  /** Piece name, woven into the generation prompt */
+  productName: string;
+  /** Called with the generated data URL once the user approves it */
+  onUse: (dataUrl: string, mode: "add" | "replace") => void;
+}
+
+export default function StudioShotDialog({ open, onOpenChange, image, productName, onUse }: StudioShotDialogProps) {
+  const [style, setStyle] = useState<StudioStyleKey>("CLASSIC_WHITE");
+  const [size, setSize] = useState("1024x1024");
+  const [generating, setGenerating] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Reset whenever a new source image is offered
+  useEffect(() => {
+    if (!open) return;
+    setResult(null);
+    setError(null);
+    setElapsed(0);
+    setSource(image.startsWith("data:") ? image : null);
+    if (!image.startsWith("data:")) {
+      toDataUrl(image)
+        .then(setSource)
+        .catch(() => setError("Could not read the source image."));
+    }
+  }, [open, image]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  function startTimer() {
+    setElapsed(0);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
+  }
+
+  async function generate() {
+    if (!source || generating) return;
+    setGenerating(true);
+    setError(null);
+    setResult(null);
+    startTimer();
+    try {
+      const res = await api<{ image: string }>("/api/admin/studio-shot", {
+        method: "POST",
+        body: JSON.stringify({ image: source, style, size, name: productName }),
+      });
+      setResult(res.image);
+      toast.success("Studio shot ready", { description: "Compare it with the original below." });
+    } catch (e) {
+      if (!isAuthError(e)) {
+        setError(errMsg(e));
+        toast.error("Studio render failed", { description: errMsg(e) });
+      }
+    } finally {
+      if (timerRef.current) clearInterval(timerRef.current);
+      setGenerating(false);
+    }
+  }
+
+  const active = STYLE_PRESETS.find((s) => s.key === style)!;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !generating && onOpenChange(o)}>
+      <DialogContent className="admin-scroll max-h-[92vh] overflow-y-auto border-[#EAE2D3] sm:max-w-3xl">
+        <DialogHeader>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-[#B0A88F]">AI studio</p>
+          <DialogTitle className="flex items-center gap-2 font-serif text-xl text-[#1C1A16]">
+            <Sparkles className="size-5 text-[#D4AF37]" aria-hidden /> Studio photoshoot
+          </DialogTitle>
+          <DialogDescription>
+            Re-photographs <span className="font-medium text-[#1C1A16]">{productName}</span> in a professional studio
+            set-up — the physical design of the piece is preserved exactly, only the staging changes.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* ---------- look picker ---------- */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-[#8A8375]">Choose the look</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {STYLE_PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => setStyle(preset.key)}
+                aria-pressed={style === preset.key}
+                className={cn(
+                  "group rounded-lg border p-2 text-left transition-all",
+                  style === preset.key
+                    ? "border-[#D4AF37] ring-1 ring-[#D4AF37]"
+                    : "border-[#EAE2D3] hover:border-[#D4AF37]/60"
+                )}
+              >
+                <span className="mb-1.5 block h-10 w-full rounded" style={{ background: preset.swatch }} aria-hidden />
+                <span className="block text-xs font-medium text-[#1C1A16]">{preset.label}</span>
+                <span className="block text-[10px] leading-snug text-[#B0A88F]">{preset.blurb}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-md border border-[#EAE2D3] p-0.5">
+            {SIZE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSize(opt.value)}
+                aria-pressed={size === opt.value}
+                className={cn(
+                  "rounded px-3 py-1.5 text-xs transition-colors",
+                  size === opt.value ? "bg-[#171717] text-white" : "text-[#5A544A] hover:bg-[#F3EFE5]"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <Button
+            type="button"
+            onClick={generate}
+            disabled={generating || !source}
+            className="bg-[#171717] text-white hover:bg-[#2A2824]"
+          >
+            {generating ? (
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden /> Rendering… {elapsed}s
+              </>
+            ) : result ? (
+              <>
+                <RefreshCcw className="size-4" aria-hidden /> Re-generate
+              </>
+            ) : (
+              <>
+                <Wand2 className="size-4" aria-hidden /> Generate studio shot
+              </>
+            )}
+          </Button>
+          <p className="text-[11px] text-[#B0A88F]">
+            {generating ? "Usually takes 15–50 seconds — keep this panel open." : `${active.label} · ${active.blurb.toLowerCase()}`}
+          </p>
+        </div>
+
+        {error && (
+          <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
+        {/* ---------- comparison ---------- */}
+        {(source || result || generating) && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <figure className="space-y-1.5">
+              <figcaption className="text-[10px] uppercase tracking-[0.25em] text-[#B0A88F]">Original photo</figcaption>
+              <div className="aspect-square overflow-hidden rounded-lg border border-[#EAE2D3] bg-[#FBF9F4]">
+                {source ? (                  <img src={source} alt="Original product photo" className="h-full w-full object-contain" />
+                ) : (
+                  <div className="grid h-full place-items-center text-xs text-[#B0A88F]">Reading image…</div>
+                )}
+              </div>
+            </figure>
+            <figure className="space-y-1.5">
+              <figcaption className="text-[10px] uppercase tracking-[0.25em] text-[#B0A88F]">Studio render</figcaption>
+              <div className="relative aspect-square overflow-hidden rounded-lg border border-[#D4AF37]/40 bg-[#FBF9F4]">
+                {generating ? (
+                  <div className="grid h-full place-items-center gap-2 text-center">
+                    <div>
+                      <Loader2 className="mx-auto size-6 animate-spin text-[#D4AF37]" aria-hidden />
+                      <p className="mt-2 text-xs text-[#8A8375]">Setting up the lights… {elapsed}s</p>
+                    </div>
+                  </div>
+                ) : result ? (                  <img src={result} alt="Generated studio photograph" className="h-full w-full object-contain" />
+                ) : (
+                  <div className="grid h-full place-items-center text-xs text-[#B0A88F]">
+                    {source ? "Press Generate to stage the shoot" : "—"}
+                  </div>
+                )}
+              </div>
+            </figure>
+          </div>
+        )}
+
+        {/* ---------- actions ---------- */}
+        {result && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-[#EAE2D3] pt-4">
+            <Button
+              type="button"
+              onClick={() => {
+                onUse(result, "add");
+                onOpenChange(false);
+              }}
+              className="bg-[#171717] text-white hover:bg-[#2A2824]"
+            >
+              <Check className="size-4" aria-hidden /> Add as new image
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onUse(result, "replace");
+                onOpenChange(false);
+              }}
+              className="border-[#D4AF37]/50 text-[#7A5E14] hover:bg-[#D4AF37]/10"
+            >
+              Replace original
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setResult(null)}
+              className="text-[#8A8375] hover:text-[#1C1A16]"
+            >
+              <X className="size-4" aria-hidden /> Discard
+            </Button>
+            <p className="text-[11px] italic text-[#B0A88F]">
+              Not quite right? Re-generate — every render is a fresh take.
+            </p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

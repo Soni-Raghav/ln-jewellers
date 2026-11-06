@@ -24,8 +24,12 @@ export function serializeProduct(p: ProductWithRelations): Product {
   // Only the detail endpoint carries full review rows (they have a comment);
   // list endpoints get rating-only rows which must NOT leak as `reviews`.
   const detailed = reviews.length > 0 && "comment" in reviews[0];
+  // model3dData (uploaded base64 GLB) must never travel through public JSON —
+  // the product page fetches it on demand from /api/models/{id}.glb instead.
+  const { model3dData: _drop, ...rest } = p as ProductWithRelations & { model3dData?: string | null };
+  void _drop;
   return {
-    ...p,
+    ...rest,
     images,
     tags: parseJsonArray<string>(p.tags),
     rating,

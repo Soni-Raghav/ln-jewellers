@@ -50,6 +50,13 @@ export default function ProductView() {
   const stageCaptureRef = useRef<(() => string) | null>(null);
   const buyBoxRef = useRef<HTMLDivElement | null>(null);
 
+  // The 3D atelier tab is opt-in per piece (admin toggle) and prefers an
+  // uploaded GLB over an external model URL.
+  const has3d = !!product?.show3dView;
+  const stageModelUrl = product?.model3dName
+    ? `/api/models/${product.id}.glb`
+    : product?.model3dUrl || undefined;
+
   // Magnifier: move the transform-origin with the cursor for a true loupe feel
   const onGalleryMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -312,13 +319,13 @@ export default function ProductView() {
             onMouseEnter={mode === "photos" ? () => setZooming(true) : undefined}
             onMouseLeave={mode === "photos" ? () => setZooming(false) : undefined}
           >
-            {mode === "3d" ? (
+            {mode === "3d" && has3d ? (
               /* ------- interactive 3D stage ------- */
               <div className="relative aspect-[4/5] w-full" data-stage3d="">
                 <ProductStage
                   categorySlug={product.category?.slug ?? ""}
                   material={product.material}
-                  modelUrl={product.model3dUrl ?? undefined}
+                  modelUrl={stageModelUrl}
                   image={product.images?.[0]}
                   name={product.name}
                   captureRef={stageCaptureRef}
@@ -401,31 +408,38 @@ export default function ProductView() {
             )}
           </div>
 
-          {/* view-mode switch — photographs vs interactive 3D */}
-          <div className="mt-3 flex items-center justify-center" role="tablist" aria-label="Gallery view mode">
-            <div className="flex rounded-full border border-[#D4AF37]/35 bg-white p-1 shadow-sm">
-              <button
-                role="tab"
-                aria-selected={mode === "photos"}
-                onClick={() => setMode("photos")}
-                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs uppercase tracking-wider transition-colors ${
-                  mode === "photos" ? "bg-[#0A0A0A] text-[#E6C87A]" : "text-muted-foreground hover:text-[#7a611f]"
-                }`}
-              >
-                <Images className="h-3.5 w-3.5" /> Photographs
-              </button>
-              <button
-                role="tab"
-                aria-selected={mode === "3d"}
-                onClick={() => setMode("3d")}
-                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs uppercase tracking-wider transition-colors ${
-                  mode === "3d" ? "bg-[#0A0A0A] text-[#E6C87A]" : "text-muted-foreground hover:text-[#7a611f]"
-                }`}
-              >
-                <Rotate3d className="h-3.5 w-3.5" /> View in 3D
-              </button>
+          {/* view-mode switch — photographs vs interactive 3D (3D is opt-in per piece) */}
+          {has3d ? (
+            <div className="mt-3 flex items-center justify-center" role="tablist" aria-label="Gallery view mode">
+              <div className="flex rounded-full border border-[#D4AF37]/35 bg-white p-1 shadow-sm">
+                <button
+                  role="tab"
+                  aria-selected={mode === "photos"}
+                  onClick={() => setMode("photos")}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs uppercase tracking-wider transition-colors ${
+                    mode === "photos" ? "bg-[#0A0A0A] text-[#E6C87A]" : "text-muted-foreground hover:text-[#7a611f]"
+                  }`}
+                >
+                  <Images className="h-3.5 w-3.5" /> Photographs
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={mode === "3d"}
+                  onClick={() => setMode("3d")}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs uppercase tracking-wider transition-colors ${
+                    mode === "3d" ? "bg-[#0A0A0A] text-[#E6C87A]" : "text-muted-foreground hover:text-[#7a611f]"
+                  }`}
+                >
+                  <Rotate3d className="h-3.5 w-3.5" /> View in 3D
+                </button>
+              </div>
             </div>
-          </div>
+          ) : mode === "3d" ? (
+            /* defensive: the toggle disappeared while the 3D mode was active */
+            <div className="mt-3 flex justify-center" data-mode-reset="">
+              <span className="sr-only">3D view unavailable — showing photographs</span>
+            </div>
+          ) : null}
 
           {mode === "photos" && product.images && product.images.length > 1 && (
             <div className="mt-3 flex gap-3">

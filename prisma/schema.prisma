@@ -63,8 +63,11 @@ model Product {
   category          Category            @relation(fields: [categoryId], references: [id])
   collectionId      String?
   collection        Collection?         @relation(fields: [collectionId], references: [id])
-  images            String              @default("[]") // JSON array of image urls
-  model3dUrl        String? // optional GLB/GLTF url
+  images            String              @default("[]") // JSON array of image urls (http urls or data: urls)
+  model3dUrl        String? // optional external GLB/GLTF url
+  show3dView        Boolean             @default(false) // admin toggle — show the interactive 3D tab on the product page
+  model3dData       String? // base64 GLB uploaded from the admin panel (served via /api/models/{id}.glb)
+  model3dName       String? // original file name of the uploaded 3D model
   material          String              @default("22K Gold")
   purity            String?
   color             String?

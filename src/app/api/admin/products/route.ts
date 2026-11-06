@@ -16,17 +16,61 @@ function parseTags(v: unknown): string {
   return "[]";
 }
 
+// Images may be http(s) urls OR base64 data urls (uploads from the admin panel).
+const MAX_IMAGE_CHARS = 2_800_000; // ≈2 MB binary per image after base64
+
+function acceptImage(item: unknown): string | null {
+  const s = sanitize(item);
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s)) return s.slice(0, 1000);
+  // site-relative asset paths (e.g. /images/products/ring.png) are first-class citizens
+  if (s.startsWith("/") && !s.startsWith("//") && s.length <= 1000) return s;
+  if (/^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=\s]+$/.test(s) && s.length <= MAX_IMAGE_CHARS)
+    return s.replace(/\s/g, "");
+  return null;
+}
+
 function parseImages(v: unknown): string {
-  if (Array.isArray(v)) return JSON.stringify(v.map((s) => sanitize(s).slice(0, 300)).filter(Boolean).slice(0, 8));
-  if (typeof v === "string") {
+  let arr: unknown[] | null = null;
+  if (Array.isArray(v)) arr = v;
+  else if (typeof v === "string") {
     try {
-      const arr = JSON.parse(v);
-      if (Array.isArray(arr)) return JSON.stringify(arr.map((s) => sanitize(s).slice(0, 300)).filter(Boolean).slice(0, 8));
+      const parsed = JSON.parse(v);
+      if (Array.isArray(parsed)) arr = parsed;
     } catch {
       /* fallthrough */
     }
   }
-  return "[]";
+  if (!arr) return "[]";
+  const out: string[] = [];
+  for (const item of arr.slice(0, 8)) {
+    const accepted = acceptImage(item);
+    if (accepted) out.push(accepted);
+  }
+  return JSON.stringify(out);
+}
+
+/**
+ * Uploaded 3D models arrive as raw base64 (optionally with a data: prefix).
+ * The buffer must decode to a real GLB — it has to start with the "glTF" magic.
+ * Returns undefined = field absent; null = remove; string = valid base64.
+ */
+const MAX_MODEL_B64 = 3_600_000; // ≈2.6 MB binary — keeps the whole request under Vercel's 4.5 MB cap
+
+function parseModelData(v: unknown): { ok: true; data: string | null } | { ok: false } | undefined {
+  if (v === undefined) return undefined;
+  if (v === null || v === "") return { ok: true, data: null };
+  if (typeof v !== "string") return { ok: false };
+  const clean = v.replace(/^data:[^,]*,/, "").replace(/\s/g, "");
+  if (!/^[A-Za-z0-9+/=]+$/.test(clean) || clean.length > MAX_MODEL_B64) return { ok: false };
+  let buf: Buffer;
+  try {
+    buf = Buffer.from(clean, "base64");
+  } catch {
+    return { ok: false };
+  }
+  if (buf.length < 12 || buf.readUInt32LE(0) !== 0x46546c67) return { ok: false }; // "glTF" magic
+  return { ok: true, data: clean };
 }
 
 export async function GET(req: Request) {
@@ -59,7 +103,9 @@ export async function GET(req: Request) {
 
     return ok({
       items: products.map((p) => ({
+        // model3dData is multi-MB base64 — never ship it through the list payload
         ...p,
+        model3dData: undefined,
         images: JSON.parse(p.images || "[]"),
         tags: JSON.parse(p.tags || "[]"),
       })),
@@ -98,6 +144,10 @@ export async function POST(req: Request) {
     const dupSlug = await db.product.findUnique({ where: { slug } });
     if (dupSlug) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
 
+    const incomingModel = parseModelData(body.model3dData);
+    if (incomingModel && !incomingModel.ok)
+      return badRequest("Validation failed", { model3dData: "The 3D file must be a .glb binary up to 2.5 MB" });
+
     const stock = Math.max(0, toInt(body.stock, 0));
     const product = await db.product.create({
       data: {
@@ -111,7 +161,13 @@ export async function POST(req: Request) {
         categoryId,
         collectionId: sanitize(body.collectionId).slice(0, 40) || null,
         images: parseImages(body.images),
-        model3dUrl: sanitize(body.model3dUrl).slice(0, 300) || null,
+        model3dUrl: sanitize(body.model3dUrl).slice(0, 600) || null,
+        show3dView: !!body.show3dView,
+        model3dData: incomingModel && incomingModel.ok ? incomingModel.data : null,
+        model3dName:
+          incomingModel && incomingModel.ok && incomingModel.data
+            ? sanitize(body.model3dName).slice(0, 200) || "model.glb"
+            : null,
         material: sanitize(body.material).slice(0, 80) || "22K Gold",
         purity: sanitize(body.purity).slice(0, 40) || null,
         color: sanitize(body.color).slice(0, 40) || null,
