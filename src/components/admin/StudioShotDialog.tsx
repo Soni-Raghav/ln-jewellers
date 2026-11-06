@@ -79,17 +79,26 @@ interface StudioShotDialogProps {
 
 export default function StudioShotDialog({ open, onOpenChange, image, productName, onUse }: StudioShotDialogProps) {
   const [enhancing, setEnhancing] = useState(false);
+  const [scale, setScale] = useState<"1" | "2" | "4">("1");
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [source, setSource] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const SCALE_OPTIONS: { value: "1" | "2" | "4"; label: string; hint: string }[] = [
+    { value: "1", label: "Standard 1×", hint: "Catalogue 1600 px" },
+    { value: "2", label: "Large 2×", hint: "Up to 3200 px" },
+    { value: "4", label: "Max 4×", hint: "Marketplace-ready" },
+  ];
+
   // Reset whenever a new source image is offered
   useEffect(() => {
     if (!open) return;
     setResult(null);
     setError(null);
+    setDims(null);
     setElapsed(0);
     setSource(image.startsWith("data:") ? image : null);
     if (!image.startsWith("data:")) {
@@ -116,14 +125,24 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
     setEnhancing(true);
     setError(null);
     setResult(null);
+    setDims(null);
     startTimer();
     try {
-      const res = await api<{ image: string }>("/api/admin/studio-enhance", {
-        method: "POST",
-        body: JSON.stringify({ image: source }),
-      });
+      const res = await api<{ image: string; width?: number; height?: number; scale?: string }>(
+        "/api/admin/studio-enhance",
+        {
+          method: "POST",
+          body: JSON.stringify({ image: source, scale }),
+        }
+      );
       setResult(res.image);
-      toast.success("Cleaned-up photo ready", { description: "Catalogue look — design untouched." });
+      if (res.width && res.height) setDims({ w: res.width, h: res.height });
+      toast.success("Cleaned-up photo ready", {
+        description:
+          res.width && res.height
+            ? `Catalogue look at ${res.width} × ${res.height} px — design untouched.`
+            : "Catalogue look — design untouched.",
+      });
     } catch (e) {
       if (!isAuthError(e)) {
         const msg = errMsg(e);
@@ -150,6 +169,36 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
           </DialogDescription>
         </DialogHeader>
 
+        {/* ---------- output size ---------- */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-[#8A8375]">Output size</p>
+          <div className="grid grid-cols-3 gap-2">
+            {SCALE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setScale(opt.value)}
+                aria-pressed={scale === opt.value}
+                className={cn(
+                  "rounded-lg border px-3 py-2 text-left transition-all",
+                  scale === opt.value
+                    ? "border-[#D4AF37] ring-1 ring-[#D4AF37]"
+                    : "border-[#EAE2D3] hover:border-[#D4AF37]/60"
+                )}
+              >
+                <span className="block text-xs font-medium text-[#1C1A16]">{opt.label}</span>
+                <span className="block text-[10px] leading-snug text-[#B0A88F]">{opt.hint}</span>
+              </button>
+            ))}
+          </div>
+          {scale !== "1" && (
+            <p className="text-[11px] text-[#8A8375]">
+              Upscales with Lanczos3 resampling + unsharp mask — meets marketplace minimums (Amazon, Flipkart,
+              Myntra). Larger files, same crisp piece.
+            </p>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -173,8 +222,12 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
           </Button>
           <p className="text-[11px] text-[#B0A88F]">
             {enhancing
-              ? "Applying the studio clean-up…"
-              : "White background, auto-levels, crisp macro sharpening — design untouched."}
+              ? scale !== "1"
+                ? "Upscaling & polishing…"
+                : "Applying the studio clean-up…"
+              : scale === "1"
+                ? "White background, auto-levels, crisp macro sharpening — design untouched."
+                : "Larger resolution, white background, auto-levels, sharpened detail — design untouched."}
           </p>
         </div>
 
@@ -198,7 +251,9 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
               </div>
             </figure>
             <figure className="space-y-1.5">
-              <figcaption className="text-[10px] uppercase tracking-[0.25em] text-[#B0A88F]">Cleaned-up photo</figcaption>
+              <figcaption className="text-[10px] uppercase tracking-[0.25em] text-[#B0A88F]">
+                Cleaned-up photo{dims ? ` · ${dims.w} × ${dims.h} px` : ""}
+              </figcaption>
               <div className="relative aspect-square overflow-hidden rounded-lg border border-[#D4AF37]/40 bg-[#FBF9F4]">
                 {enhancing ? (
                   <div className="grid h-full place-items-center gap-2 text-center">
