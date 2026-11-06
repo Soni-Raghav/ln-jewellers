@@ -21,7 +21,7 @@ const API = "https://api.vercel.com";
 const TEAM = process.env.VERCEL_TEAM_ID; // optional
 const qs = TEAM ? `?teamId=${TEAM}` : "";
 const PROJECT = process.env.VERCEL_PROJECT_ID || "ln-jewellers";
-const GIT_REPO = "Soni-Raghav/ln-jewellers";
+const GIT_REPO_ID = Number(process.env.VERCEL_REPO_ID || 1416566395); // github numeric id of Soni-Raghav/ln-jewellers
 
 // ---------- 1. build the config payload ----------
 const cfgPaths = ["/etc/.z-ai-config", `${process.env.HOME}/.z-ai-config`];
@@ -80,7 +80,7 @@ const dep = await j(`${API}/v13/deployments${qs}`, {
     name: proj.name,
     project: projectId,
     target: "production",
-    gitSource: { type: "github", repo: GIT_REPO, ref: "main" },
+    gitSource: { type: "github", repoId: GIT_REPO_ID, ref: "main" },
   }),
 });
 console.log(`⏳ deployment ${dep.id} queued — polling…`);

@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2, RefreshCcw, Sparkles, Wand2, X } from "lucide-react";
+import { Check, Loader2, RefreshCcw, Sparkles, Wand2, WandSparkles, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -93,12 +93,14 @@ interface StudioShotDialogProps {
 }
 
 export default function StudioShotDialog({ open, onOpenChange, image, productName, onUse }: StudioShotDialogProps) {
+  const [mode, setMode] = useState<"ai" | "instant">("ai");
   const [style, setStyle] = useState<StudioStyleKey>("CLASSIC_WHITE");
   const [size, setSize] = useState("1024x1024");
   const [generating, setGenerating] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
   const [source, setSource] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -107,6 +109,7 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
     if (!open) return;
     setResult(null);
     setError(null);
+    setAiUnavailable(false);
     setElapsed(0);
     setSource(image.startsWith("data:") ? image : null);
     if (!image.startsWith("data:")) {
@@ -115,6 +118,13 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
         .catch(() => setError("Could not read the source image."));
     }
   }, [open, image]);
+
+  function switchMode(next: "ai" | "instant") {
+    if (generating || mode === next) return;
+    setMode(next);
+    setResult(null);
+    setError(null);
+  }
 
   useEffect(() => {
     return () => {
@@ -135,16 +145,28 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
     setResult(null);
     startTimer();
     try {
-      const res = await api<{ image: string }>("/api/admin/studio-shot", {
-        method: "POST",
-        body: JSON.stringify({ image: source, style, size, name: productName }),
-      });
-      setResult(res.image);
-      toast.success("Studio shot ready", { description: "Compare it with the original below." });
+      if (mode === "instant") {
+        const res = await api<{ image: string }>("/api/admin/studio-enhance", {
+          method: "POST",
+          body: JSON.stringify({ image: source }),
+        });
+        setResult(res.image);
+        toast.success("Enhanced photo ready", { description: "Clean catalogue look — design untouched." });
+      } else {
+        const res = await api<{ image: string }>("/api/admin/studio-shot", {
+          method: "POST",
+          body: JSON.stringify({ image: source, style, size, name: productName }),
+        });
+        setResult(res.image);
+        setAiUnavailable(false);
+        toast.success("Studio shot ready", { description: "Compare it with the original below." });
+      }
     } catch (e) {
       if (!isAuthError(e)) {
-        setError(errMsg(e));
-        toast.error("Studio render failed", { description: errMsg(e) });
+        const msg = errMsg(e);
+        setError(msg);
+        if (mode === "ai" && /reach the AI image service|not configured/i.test(msg)) setAiUnavailable(true);
+        toast.error(mode === "instant" ? "Enhance failed" : "Studio render failed", { description: msg });
       }
     } finally {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -158,58 +180,101 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
     <Dialog open={open} onOpenChange={(o) => !generating && onOpenChange(o)}>
       <DialogContent className="admin-scroll max-h-[92vh] overflow-y-auto border-[#EAE2D3] sm:max-w-3xl">
         <DialogHeader>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-[#B0A88F]">AI studio</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-[#B0A88F]">
+            {mode === "ai" ? "AI studio" : "Studio tools"}
+          </p>
           <DialogTitle className="flex items-center gap-2 font-serif text-xl text-[#1C1A16]">
             <Sparkles className="size-5 text-[#D4AF37]" aria-hidden /> Studio photoshoot
           </DialogTitle>
           <DialogDescription>
-            Re-photographs <span className="font-medium text-[#1C1A16]">{productName}</span> in a professional studio
-            set-up — the physical design of the piece is preserved exactly, only the staging changes.
+            {mode === "ai" ? (
+              <>
+                Re-photographs <span className="font-medium text-[#1C1A16]">{productName}</span> in a professional
+                studio set-up — the physical design of the piece is preserved exactly, only the staging changes.
+              </>
+            ) : (
+              <>
+                Cleans up <span className="font-medium text-[#1C1A16]">{productName}</span> for catalogue use in about
+                a second — no AI involved, so the design is guaranteed untouched.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
-        {/* ---------- look picker ---------- */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wider text-[#8A8375]">Choose the look</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {STYLE_PRESETS.map((preset) => (
-              <button
-                key={preset.key}
-                type="button"
-                onClick={() => setStyle(preset.key)}
-                aria-pressed={style === preset.key}
-                className={cn(
-                  "group rounded-lg border p-2 text-left transition-all",
-                  style === preset.key
-                    ? "border-[#D4AF37] ring-1 ring-[#D4AF37]"
-                    : "border-[#EAE2D3] hover:border-[#D4AF37]/60"
-                )}
-              >
-                <span className="mb-1.5 block h-10 w-full rounded" style={{ background: preset.swatch }} aria-hidden />
-                <span className="block text-xs font-medium text-[#1C1A16]">{preset.label}</span>
-                <span className="block text-[10px] leading-snug text-[#B0A88F]">{preset.blurb}</span>
-              </button>
-            ))}
-          </div>
+        {/* ---------- mode switcher ---------- */}
+        <div className="flex rounded-md border border-[#EAE2D3] p-0.5" role="tablist" aria-label="Studio mode">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "ai"}
+            onClick={() => switchMode("ai")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors",
+              mode === "ai" ? "bg-[#171717] text-white" : "text-[#5A544A] hover:bg-[#F3EFE5]"
+            )}
+          >
+            <Sparkles className="size-3.5" aria-hidden /> AI scene <span className="hidden text-[10px] font-normal opacity-70 sm:inline">· full re-staging</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "instant"}
+            onClick={() => switchMode("instant")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors",
+              mode === "instant" ? "bg-[#171717] text-white" : "text-[#5A544A] hover:bg-[#F3EFE5]"
+            )}
+          >
+            <Zap className="size-3.5" aria-hidden /> Instant clean-up <span className="hidden text-[10px] font-normal opacity-70 sm:inline">· no AI, ~1s</span>
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-md border border-[#EAE2D3] p-0.5">
-            {SIZE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setSize(opt.value)}
-                aria-pressed={size === opt.value}
-                className={cn(
-                  "rounded px-3 py-1.5 text-xs transition-colors",
-                  size === opt.value ? "bg-[#171717] text-white" : "text-[#5A544A] hover:bg-[#F3EFE5]"
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
+        {/* ---------- look picker (AI mode only) ---------- */}
+        {mode === "ai" && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-[#8A8375]">Choose the look</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {STYLE_PRESETS.map((preset) => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => setStyle(preset.key)}
+                  aria-pressed={style === preset.key}
+                  className={cn(
+                    "group rounded-lg border p-2 text-left transition-all",
+                    style === preset.key
+                      ? "border-[#D4AF37] ring-1 ring-[#D4AF37]"
+                      : "border-[#EAE2D3] hover:border-[#D4AF37]/60"
+                  )}
+                >
+                  <span className="mb-1.5 block h-10 w-full rounded" style={{ background: preset.swatch }} aria-hidden />
+                  <span className="block text-xs font-medium text-[#1C1A16]">{preset.label}</span>
+                  <span className="block text-[10px] leading-snug text-[#B0A88F]">{preset.blurb}</span>
+                </button>
+              ))}
+            </div>
           </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {mode === "ai" && (
+            <div className="flex rounded-md border border-[#EAE2D3] p-0.5">
+              {SIZE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSize(opt.value)}
+                  aria-pressed={size === opt.value}
+                  className={cn(
+                    "rounded px-3 py-1.5 text-xs transition-colors",
+                    size === opt.value ? "bg-[#171717] text-white" : "text-[#5A544A] hover:bg-[#F3EFE5]"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
           <Button
             type="button"
             onClick={generate}
@@ -218,27 +283,39 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
           >
             {generating ? (
               <>
-                <Loader2 className="size-4 animate-spin" aria-hidden /> Rendering… {elapsed}s
+                <Loader2 className="size-4 animate-spin" aria-hidden /> {mode === "instant" ? "Polishing…" : "Rendering…"} {elapsed}s
               </>
             ) : result ? (
               <>
-                <RefreshCcw className="size-4" aria-hidden /> Re-generate
+                <RefreshCcw className="size-4" aria-hidden /> {mode === "instant" ? "Enhance again" : "Re-generate"}
               </>
             ) : (
               <>
-                <Wand2 className="size-4" aria-hidden /> Generate studio shot
+                {mode === "instant" ? <WandSparkles className="size-4" aria-hidden /> : <Wand2 className="size-4" aria-hidden />}
+                {mode === "instant" ? "Enhance photo" : "Generate studio shot"}
               </>
             )}
           </Button>
           <p className="text-[11px] text-[#B0A88F]">
-            {generating ? "Usually takes 15–50 seconds — keep this panel open." : `${active.label} · ${active.blurb.toLowerCase()}`}
+            {generating
+              ? mode === "instant"
+                ? "Applying the studio clean-up…"
+                : "Usually takes 15–50 seconds — keep this panel open."
+              : mode === "instant"
+                ? "White background, auto-levels, crisp macro sharpening — design untouched."
+                : `${active.label} · ${active.blurb.toLowerCase()}`}
           </p>
         </div>
 
         {error && (
-          <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
+          <div role="alert" className="space-y-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-2">
+            <p className="text-sm text-red-700">{error}</p>
+            {aiUnavailable && (
+              <p className="text-xs text-red-600/80">
+                Tip: switch to <strong>Instant clean-up</strong> — it works without the AI service on every deployment.
+              </p>
+            )}
+          </div>
         )}
 
         {/* ---------- comparison ---------- */}
@@ -260,13 +337,19 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
                   <div className="grid h-full place-items-center gap-2 text-center">
                     <div>
                       <Loader2 className="mx-auto size-6 animate-spin text-[#D4AF37]" aria-hidden />
-                      <p className="mt-2 text-xs text-[#8A8375]">Setting up the lights… {elapsed}s</p>
+                      <p className="mt-2 text-xs text-[#8A8375]">
+                        {mode === "instant" ? "Polishing the photo…" : "Setting up the lights…"} {elapsed}s
+                      </p>
                     </div>
                   </div>
                 ) : result ? (                  <img src={result} alt="Generated studio photograph" className="h-full w-full object-contain" />
                 ) : (
                   <div className="grid h-full place-items-center text-xs text-[#B0A88F]">
-                    {source ? "Press Generate to stage the shoot" : "—"}
+                    {source
+                      ? mode === "instant"
+                        ? "Press Enhance for the instant clean-up"
+                        : "Press Generate to stage the shoot"
+                      : "—"}
                   </div>
                 )}
               </div>
