@@ -18,6 +18,7 @@ import { Check, Loader2, RefreshCcw, Sparkles, WandSparkles, X } from "lucide-re
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { api, errMsg, isAuthError } from "./api";
 
 /** Source images are normalised before upload: anything larger than 1536 px
