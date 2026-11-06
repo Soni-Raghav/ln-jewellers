@@ -343,6 +343,7 @@ async function main() {
         careInstructions: careText,
         status: "PUBLISHED",
         tags: JSON.stringify(p.tags),
+        model3dUrl: `/models/${p.slug}.glb`,
       },
     });
     if (p.variants?.length) {

@@ -318,6 +318,7 @@ export default function ProductView() {
                 <ProductStage
                   categorySlug={product.category?.slug ?? ""}
                   material={product.material}
+                  modelUrl={product.model3dUrl ?? undefined}
                   image={product.images?.[0]}
                   name={product.name}
                   captureRef={stageCaptureRef}

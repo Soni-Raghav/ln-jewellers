@@ -19,10 +19,10 @@
  *   (d) Lazy mount         -> Canvas mounts only when the host is in view
  */
 
-import { Component, createElement, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, createElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, Float, OrbitControls, Sparkles } from "@react-three/drei";
-import { DoubleSide, type Group, type Mesh, type MeshPhysicalMaterial } from "three";
+import { ContactShadows, Environment, Float, Lightformer, OrbitControls, Sparkles, useGLTF } from "@react-three/drei";
+import { Box3, DoubleSide, Vector3, type Group, type Mesh, type MeshPhysicalMaterial, type MeshStandardMaterial } from "three";
 import { cn } from "@/lib/utils";
 
 const GOLD = "#D4AF37";
@@ -306,6 +306,45 @@ function BanglePiece({ metal, gem }: { metal: { color: string }; gem: { color: s
 }
 
 /* ------------------------------------------------------------------ */
+/* Real GLB model — the actual product piece                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * GltfPiece — loads the product's bespoke GLB (built by scripts/build-models.mjs
+ * or supplied by the atelier later), normalizes it into the stage's frame and
+ * tunes the baked PBR materials for the studio environment.
+ */
+function GltfPiece({ url }: { url: string }) {
+  const { scene } = useGLTF(url);
+  const normalized = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((obj) => {
+      const mesh = obj as Mesh;
+      if (mesh.isMesh) {
+        mesh.castShadow = true;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const m of mats) {
+          const std = m as MeshStandardMaterial;
+          if (std && "envMapIntensity" in std) {
+            std.envMapIntensity = 1.35;
+            std.needsUpdate = true;
+          }
+        }
+      }
+    });
+    const box = new Box3().setFromObject(clone);
+    const size = box.getSize(new Vector3());
+    const center = box.getCenter(new Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const s = 2.8 / maxDim;
+    clone.scale.setScalar(s);
+    clone.position.set(-center.x * s, -center.y * s, -center.z * s);
+    return clone;
+  }, [scene]);
+  return <primitive object={normalized} />;
+}
+
+/* ------------------------------------------------------------------ */
 /* Scene                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -343,17 +382,28 @@ function framingFor(categorySlug: string): { z: number; ty: number; sy: number }
 function Scene({
   categorySlug,
   material,
+  modelUrl,
   reduced,
   spin,
 }: {
   categorySlug: string;
   material: string;
+  modelUrl?: string;
   reduced: boolean;
   spin: boolean;
 }) {
   const metal = metalTone(material);
   const gem = gemTone(material);
-  const piece = createElement(pickModel(categorySlug) as unknown as (p: { metal: typeof metal; gem: typeof gem }) => ReactNode, { metal, gem });
+  const proceduralPiece = createElement(pickModel(categorySlug) as unknown as (p: { metal: typeof metal; gem: typeof gem }) => ReactNode, { metal, gem });
+  const piece = modelUrl ? (
+    <StageErrorBoundary fallback={proceduralPiece}>
+      <Suspense fallback={null}>
+        <GltfPiece url={modelUrl} />
+      </Suspense>
+    </StageErrorBoundary>
+  ) : (
+    proceduralPiece
+  );
   const framing = framingFor(categorySlug);
   const spinner = useRef<Group>(null);
 
@@ -369,6 +419,16 @@ function Scene({
       <pointLight position={[-5, 2, 3]} intensity={60} color={metal.light} />
       <pointLight position={[0, 1, 5]} intensity={50} color="#FFF2DC" />
       <pointLight position={[0, 4, -6]} intensity={85} color={GOLD_LIGHT} />
+
+      {/* Generated studio environment — crisp PBR reflections with zero network fetches. */}
+      <Environment resolution={64} frames={1} background={false}>
+        <color attach="background" args={["#1A1204"]} />
+        <Lightformer intensity={4} position={[0, 5, 2]} rotation={[Math.PI / 2, 0, 0]} scale={[9, 9, 1]} color="#FFF6E4" />
+        <Lightformer intensity={2.4} position={[-5, 1.5, 2]} rotation={[0, Math.PI / 2, 0]} scale={[6, 3.5, 1]} color="#FFE9C0" />
+        <Lightformer intensity={2.4} position={[5, 1.5, 2]} rotation={[0, -Math.PI / 2, 0]} scale={[6, 3.5, 1]} color="#F3D896" />
+        <Lightformer intensity={1.6} position={[0, 1, -6]} scale={[8, 4, 1]} color={GOLD_LIGHT} />
+        <Lightformer form="ring" intensity={2.2} position={[2.5, 3, 4]} scale={2.5} color="#FFFFFF" />
+      </Environment>
 
       <group ref={spinner}>
         {reduced ? (
@@ -481,6 +541,7 @@ export function StageFallback({ image, name }: { image?: string; name: string })
 export function ProductStage({
   categorySlug,
   material,
+  modelUrl,
   image,
   name,
   captureRef,
@@ -489,6 +550,8 @@ export function ProductStage({
 }: {
   categorySlug: string;
   material: string;
+  /** URL of the product's bespoke GLB — falls back to the procedural stage when absent. */
+  modelUrl?: string;
   image?: string;
   name: string;
   /** When provided, the parent can call `.current()` to snapshot the canvas as a PNG data URL. */
@@ -536,7 +599,7 @@ export function ProductStage({
             frameloop={reduced ? "demand" : "always"}
             style={{ background: "transparent", touchAction: "none" }}
           >
-            <Scene categorySlug={categorySlug} material={material} reduced={reduced} spin={spin} />
+            <Scene categorySlug={categorySlug} material={material} modelUrl={modelUrl} reduced={reduced} spin={spin} />
             {captureRef && <CaptureBridge captureRef={captureRef} />}
           </Canvas>
         </StageErrorBoundary>
