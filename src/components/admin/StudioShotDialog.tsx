@@ -165,7 +165,7 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
       if (!isAuthError(e)) {
         const msg = errMsg(e);
         setError(msg);
-        if (mode === "ai" && /reach the AI image service|not configured/i.test(msg)) setAiUnavailable(true);
+        if (mode === "ai" && /reach the AI image service|not configured|free tier|billing/i.test(msg)) setAiUnavailable(true);
         toast.error(mode === "instant" ? "Enhance failed" : "Studio render failed", { description: msg });
       }
     } finally {
@@ -313,6 +313,19 @@ export default function StudioShotDialog({ open, onOpenChange, image, productNam
             {aiUnavailable && (
               <p className="text-xs text-red-600/80">
                 Tip: switch to <strong>Instant clean-up</strong> — it works without the AI service on every deployment.
+                {/billing|free tier/i.test(error) && (
+                  <>
+                    {" "}
+                    <a
+                      href="https://aistudio.google.com/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold underline decoration-red-300 underline-offset-2 hover:text-red-800"
+                    >
+                      Enable billing in Google AI Studio →
+                    </a>
+                  </>
+                )}
               </p>
             )}
           </div>

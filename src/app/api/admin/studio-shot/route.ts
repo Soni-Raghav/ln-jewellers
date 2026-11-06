@@ -14,9 +14,14 @@ import { requireAdmin } from "@/lib/auth";
  * focus) is re-staged.
  *
  * Providers (first match wins — set one on your deployment):
- *   1. GEMINI_API_KEY   → Google AI Studio "nano banana" (gemini-2.5-flash-image).
+ *   1. GEMINI_API_KEY   → Google AI Studio image models (nano banana family).
  *                         Free key from https://aistudio.google.com/apikey —
  *                         works from any host incl. Vercel. (production path)
+ *                         Supports both the classic "AIza…" keys and the newer
+ *                         "AQ.…" key format. NOTE: Google has moved image
+ *                         generation to the paid tier — free-tier keys get
+ *                         quota errors with "limit: 0", surfaced to the admin
+ *                         as an actionable "enable billing" message.
  *   2. Z_AI_CONFIG env  → the z-ai gateway, JSON { baseUrl, apiKey, token,
  *                         chatId, userId } (reachable from this dev sandbox).
  *   3. Local config     → .z-ai-config file chain (cwd → home → /etc) for dev.
@@ -116,7 +121,15 @@ async function sourceToInline(
 }
 
 // ------------------------------------------------------------------ Gemini
-const GEMINI_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+// Image models to try, in order — Google renames/retires models for new
+// accounts periodically, so we fall back across the current nano-banana
+// family instead of hard-coding one name.
+const GEMINI_IMAGE_MODELS = [
+  process.env.GEMINI_IMAGE_MODEL, // explicit override always wins
+  "gemini-2.5-flash-image", // nano banana (paid tier ≈ $0.04 / image)
+  "gemini-3.1-flash-image", // newer flash image generation
+  "gemini-3-pro-image-preview", // pro fallback
+].filter((m): m is string => !!m?.trim());
 
 interface GeminiPart {
   text?: string;
@@ -130,7 +143,8 @@ async function generateWithGemini(
   aspect: string
 ): Promise<{ image?: string; error?: string }> {
   const key = process.env.GEMINI_API_KEY as string;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+  const url = (model: string) =>
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   const buildBody = (withImageConfig: boolean) => ({
     contents: [
@@ -144,56 +158,88 @@ async function generateWithGemini(
     },
   });
 
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify(buildBody(true)),
-      signal: AbortSignal.timeout(52_000),
-    });
-    // some API revisions reject imageConfig — retry without it
-    if (res.status === 400) {
-      const t = await res.clone().text();
-      if (/imageConfig|aspect/i.test(t)) {
-        res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-          body: JSON.stringify(buildBody(false)),
-          signal: AbortSignal.timeout(52_000),
-        });
+  let lastError =
+    "The AI image service could not process this photo — please try a different or smaller image.";
+
+  for (const model of GEMINI_IMAGE_MODELS) {
+    let res: Response;
+    try {
+      res = await fetch(url(model), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify(buildBody(true)),
+        signal: AbortSignal.timeout(45_000),
+      });
+      // some API revisions reject imageConfig — retry without it
+      if (res.status === 400) {
+        const t = await res.clone().text();
+        if (/imageConfig|aspect/i.test(t)) {
+          res = await fetch(url(model), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+            body: JSON.stringify(buildBody(false)),
+            signal: AbortSignal.timeout(45_000),
+          });
+        }
       }
+    } catch (e) {
+      const aborted = (e as Error)?.name === "TimeoutError" || (e as Error)?.name === "AbortError";
+      console.error(`[studio-shot] gemini ${model} request failed:`, e);
+      return {
+        error: aborted
+          ? "The studio render took too long — please try again."
+          : "Could not reach the AI image service — please try again in a moment.",
+      };
     }
-  } catch (e) {
-    const aborted = (e as Error)?.name === "TimeoutError" || (e as Error)?.name === "AbortError";
-    console.error("[studio-shot] gemini request failed:", e);
-    return { error: aborted ? "The studio render took too long — please try again." : "Could not reach the AI image service — please try again in a moment." };
-  }
 
-  if (!res.ok) {
-    const errBody = (await res.text().catch(() => "")).slice(0, 300);
-    console.error(`[studio-shot] gemini ${res.status}:`, errBody);
-    const friendly =
-      res.status === 400 && /API key not valid/i.test(errBody)
-        ? "The configured GEMINI_API_KEY is not valid — please refresh it."
-        : res.status === 401 || res.status === 403
-          ? "The AI service rejected the configured credentials — check the GEMINI_API_KEY."
-          : res.status === 429
-            ? "The AI service is rate-limited right now (free-tier daily quota) — please wait and try again."
-            : "The AI image service could not process this photo — please try a different or smaller image.";
-    return { error: friendly };
-  }
+    if (res.ok) {
+      const json = (await res.json().catch(() => null)) as
+        | { candidates?: { content?: { parts?: GeminiPart[] } }[] }
+        | null;
+      const parts = json?.candidates?.[0]?.content?.parts ?? [];
+      const imgPart = parts.find((p) => p.inlineData?.data || p.inline_data?.data);
+      const b64 = imgPart?.inlineData?.data ?? imgPart?.inline_data?.data;
+      const mime =
+        imgPart?.inlineData?.mimeType ?? imgPart?.inline_data?.mime_type ?? "image/png";
+      if (!b64) {
+        lastError = "The studio render came back empty — please try again.";
+        continue;
+      }
+      return { image: `data:${mime};base64,${b64}` };
+    }
 
-  const json = (await res.json().catch(() => null)) as
-    | { candidates?: { content?: { parts?: GeminiPart[] } }[] }
-    | null;
-  const parts = json?.candidates?.[0]?.content?.parts ?? [];
-  const imgPart = parts.find((p) => p.inlineData?.data || p.inline_data?.data);
-  const b64 = imgPart?.inlineData?.data ?? imgPart?.inline_data?.data;
-  const mime =
-    imgPart?.inlineData?.mimeType ?? imgPart?.inline_data?.mime_type ?? "image/png";
-  if (!b64) return { error: "The studio render came back empty — please try again." };
-  return { image: `data:${mime};base64,${b64}` };
+    const errBody = (await res.text().catch(() => "")).slice(0, 600);
+    console.error(`[studio-shot] gemini ${model} ${res.status}:`, errBody);
+
+    // Terminal errors — trying other models will not help.
+    if (res.status === 429) {
+      return {
+        error: /limit: 0/.test(errBody)
+          ? "Google's free tier no longer includes image generation. Enable billing (pay-as-you-go, ≈ $0.04 per image) on the Google AI Studio project behind GEMINI_API_KEY to unlock AI scene shots — or use the Instant clean-up tab, which is always free."
+          : "The AI service is rate-limited right now — please wait a minute and try again.",
+      };
+    }
+    if (res.status === 401 || res.status === 403 || /API key not valid/i.test(errBody)) {
+      return {
+        error: "The configured GEMINI_API_KEY is not valid — please refresh it.",
+      };
+    }
+    if (res.status === 400 && /User location is not supported/i.test(errBody)) {
+      return {
+        error:
+          "The Gemini API is not available from this deployment's region — please move the deployment to a supported region.",
+      };
+    }
+
+    // 404 / unknown-model / other 400s → fall through to the next candidate.
+    lastError =
+      res.status === 404
+        ? "The AI image service could not process this photo — please try a different or smaller image."
+        : res.status === 400
+          ? "The AI image service rejected this request — please try a different or smaller image."
+          : lastError;
+  }
+  return { error: lastError };
 }
 
 // ------------------------------------------------------------- z-ai gateway
