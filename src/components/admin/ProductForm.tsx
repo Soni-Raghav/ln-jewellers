@@ -842,8 +842,8 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
                   variant="outline"
                   size="icon"
                   className="size-8 shrink-0 border-[#D4AF37]/50 text-[#7A5E14] hover:bg-[#D4AF37]/10"
-                  title="Generate an AI studio shot of this photo"
-                  aria-label={`Generate AI studio shot for image ${i + 1}`}
+                  title="Instant studio clean-up of this photo"
+                  aria-label={`Studio clean-up for image ${i + 1}`}
                   onClick={() => setStudioFor(url)}
                 >
                   <Wand2 className="size-4" aria-hidden />
@@ -1000,7 +1000,7 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
           </DialogFooter>
         </form>
 
-        {/* ---------- AI studio photoshoot ---------- */}
+        {/* ---------- Studio clean-up ---------- */}
         <StudioShotDialog
           open={!!studioFor}
           onOpenChange={(o) => {
@@ -1012,10 +1012,10 @@ export default function ProductForm({ open, onOpenChange, product, onSaved }: Pr
             if (!studioFor) return;
             if (m === "add") {
               setImages((prev) => (prev.length >= 8 ? prev : [...prev, dataUrl]));
-              toast.success("Studio shot added to the gallery.");
+              toast.success("Cleaned-up photo added to the gallery.");
             } else {
               setImages((prev) => prev.map((u, idx) => (u === studioFor ? dataUrl : u)));
-              toast.success("Original photo replaced with the studio shot.");
+              toast.success("Original photo replaced with the cleaned-up version.");
             }
           }}
         />
