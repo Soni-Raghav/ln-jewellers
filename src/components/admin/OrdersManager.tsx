@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download, XCircle, ShieldCheck, Gift, ReceiptText } from "lucide-react";
+import { Boxes, Eye, Loader2, Search, Sparkles, PenLine, Download, XCircle, ShieldCheck, Gift, ReceiptText, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import {
@@ -43,7 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { OrderDTO, Paginated } from "@/lib/types";
-import { formatINR, formatDate, engravingFontLabel } from "@/lib/format";
+import { formatINR, formatDate, engravingFontLabel, waCustomerLink, waOrderUpdateMessage, statusToUpdateKind, type OrderUpdateKind, type WaOrderUpdate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ORDER_STATUSES, PAYMENT_STATUSES, api, errMsg, humanize, isAuthError, qs, useDebounced } from "./api";
 
@@ -57,8 +57,34 @@ const STATUS_TABS = [
   { value: "CANCELLED", label: "Cancelled" },
 ];
 
+/** Concierge update templates offered per order, in journey order. */
+const UPDATE_ACTIONS: { kind: OrderUpdateKind; label: string }[] = [
+  { kind: "RECEIVED", label: "Order received" },
+  { kind: "CONFIRMED", label: "Confirmed" },
+  { kind: "IN_PRODUCTION", label: "In crafting" },
+  { kind: "SHIPPED", label: "Shipped" },
+  { kind: "DELIVERED", label: "Delivered" },
+  { kind: "CANCELLED", label: "Cancelled" },
+];
+
+function toWaUpdate(o: OrderDTO, googleReviewUrl?: string | null): WaOrderUpdate {
+  return {
+    orderNumber: o.orderNumber,
+    customerName: o.customerName,
+    items: o.items.map((it) => ({ name: it.name, variantName: it.variantName, quantity: it.quantity, lineTotal: it.lineTotal })),
+    total: o.total,
+    paymentStatus: o.paymentStatus,
+    googleReviewUrl,
+  };
+}
+
+function waUpdateHref(o: OrderDTO, kind: OrderUpdateKind, googleReviewUrl?: string | null): string {
+  return waCustomerLink(o.phone, waOrderUpdateMessage(kind, toWaUpdate(o, googleReviewUrl)));
+}
+
 export default function OrdersManager() {
   const navigate = useApp((s) => s.navigate);
+  const settings = useApp((s) => s.settings);
   const [qInput, setQInput] = useState("");
   const q = useDebounced(qInput, 350);
   const [status, setStatus] = useState("");
@@ -105,7 +131,18 @@ export default function OrdersManager() {
     setBusyId(order.id);
     try {
       await api(`/api/admin/orders/${order.id}`, { method: "PATCH", body: JSON.stringify(patch) });
-      toast.success(successMsg);
+      // After moving an order forward, offer the matching concierge message —
+      // one tap opens WhatsApp to the customer with the right update pre-filled.
+      const waAction =
+        patch.status && patch.status !== "CANCELLED"
+          ? {
+              action: {
+                label: "WhatsApp customer",
+                onClick: () => window.open(waUpdateHref(order, statusToUpdateKind(patch.status!), settings?.googleReviewUrl), "_blank", "noopener"),
+              },
+            }
+          : undefined;
+      toast.success(successMsg, waAction);
       patchLocal(order.id, patch);
     } catch (e) {
       if (!isAuthError(e)) toast.error(errMsg(e));
@@ -324,20 +361,32 @@ export default function OrdersManager() {
                         </Select>
                       </TableCell>
                       <TableCell className="pr-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-[#5A544A] hover:bg-[#D4AF37]/10 hover:text-[#7A5E14]"
-                          onClick={() => setDetail(o)}
-                          aria-label={`View order ${o.orderNumber}`}
-                          title="View detail"
-                        >
-                          {busyId === o.id ? (
-                            <Loader2 className="size-4 animate-spin" aria-hidden />
-                          ) : (
-                            <Eye className="size-4" aria-hidden />
-                          )}
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <a
+                            href={waUpdateHref(o, statusToUpdateKind(o.status), settings?.googleReviewUrl)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex size-8 items-center justify-center rounded-md text-[#5A544A] transition-colors hover:bg-[#25D366]/10 hover:text-[#128C4B]"
+                            title="WhatsApp the customer a status update"
+                            aria-label={`WhatsApp customer about order ${o.orderNumber}`}
+                          >
+                            <MessageCircle className="size-4" aria-hidden />
+                          </a>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-[#5A544A] hover:bg-[#D4AF37]/10 hover:text-[#7A5E14]"
+                            onClick={() => setDetail(o)}
+                            aria-label={`View order ${o.orderNumber}`}
+                            title="View detail"
+                          >
+                            {busyId === o.id ? (
+                              <Loader2 className="size-4 animate-spin" aria-hidden />
+                            ) : (
+                              <Eye className="size-4" aria-hidden />
+                            )}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -392,6 +441,39 @@ export default function OrdersManager() {
 
           {detail && (
             <div className="space-y-5">
+              {/* Concierge WhatsApp updates — the store messages the customer */}
+              <section className="rounded-md border border-[#25D366]/40 bg-[#25D366]/5 p-3">
+                <p className="flex items-center gap-1.5 text-sm font-medium text-[#128C4B]">
+                  <MessageCircle className="size-4" aria-hidden /> WhatsApp the customer
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-[#5A544A]">
+                  One tap opens WhatsApp with a ready message to <span className="font-medium">{detail.phone}</span> — review it and press send. The highlighted one matches this order's current status.
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {UPDATE_ACTIONS.map(({ kind, label }) => {
+                    const suggested = statusToUpdateKind(detail.status) === kind;
+                    return (
+                      <a
+                        key={kind}
+                        href={waUpdateHref(detail, kind, settings?.googleReviewUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                          suggested
+                            ? "border-[#25D366] bg-[#25D366] text-white hover:bg-[#1fb857]"
+                            : "border-[#E0D9C8] bg-white text-[#5A544A] hover:border-[#25D366]/60 hover:text-[#128C4B]"
+                        )}
+                      >
+                        <MessageCircle className="size-3" aria-hidden />
+                        {label}
+                        {suggested && <span className="sr-only">(suggested for current status)</span>}
+                      </a>
+                    );
+                  })}
+                </div>
+              </section>
+
               {/* Customer cancellation request */}
               {detail.cancelRequested && detail.status !== "CANCELLED" && (
                 <section className="rounded-md border border-amber-300 bg-amber-50 p-3">

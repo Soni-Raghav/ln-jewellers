@@ -1,4 +1,5 @@
 import type { CartItem, EngravingFont, Product, StoreSettingsDTO } from "@/lib/types";
+import { toAsciiDigits } from "@/lib/validation";
 
 // ---------- Formatting ----------
 export function formatINR(amount: number): string {
@@ -206,36 +207,136 @@ export function waCartInquiry(
   return waLink(settings.whatsappNumber, lines.join("\n"));
 }
 
-export function waOrderMessage(
-  settings: Pick<StoreSettingsDTO, "whatsappNumber">,
-  orderNumber: string,
-  items: CartItem[],
-  totals: WaTotals,
-  customer: { name: string; phone: string; address: string; city: string; state: string; pincode: string }
-): string {
-  const lines = [
-    `Hello LN Jewellers! ◆`,
-    ``,
-    `I've just placed order *${orderNumber}* on your website and would like to confirm it:`,
-    ``,
-  ];
-  items.forEach((it, i) => {
+// ---------- Store → customer order updates ----------
+// The shopper never has to message us first: they place the order on the site,
+// and the concierge sends progress updates TO the number they entered. These
+// helpers power the one-tap "WhatsApp customer" actions in the admin panel.
+
+/** wa.me link pointing at a CUSTOMER's phone — normalises Indian formats
+ *  (10 digits, leading 0, or already with 91). Unicode digits accepted. */
+export function waCustomerLink(phone: string, message: string): string {
+  let digits = toAsciiDigits(phone || "").replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("0")) digits = `91${digits.slice(1)}`;
+  if (digits.length === 10) digits = `91${digits}`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
+
+export type OrderUpdateKind = "RECEIVED" | "CONFIRMED" | "IN_PRODUCTION" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+
+export interface WaOrderUpdate {
+  orderNumber: string;
+  customerName: string;
+  items: { name: string; variantName?: string | null; quantity: number; lineTotal: number }[];
+  total: number;
+  paymentStatus?: string;
+  googleReviewUrl?: string | null;
+}
+
+function orderItemsSummary(o: WaOrderUpdate): string[] {
+  const lines: string[] = [];
+  o.items.forEach((it, i) => {
     const variant = it.variantName ? ` (${it.variantName})` : "";
-    lines.push(`${i + 1}. ${it.name}${variant} × ${it.quantity} — ${formatINR(netPrice(it.unitPrice, it.discountPercent) * it.quantity)}`);
-    if (it.engravingText)
-      lines.push(`   ↳ engrave: “${it.engravingText}” in ${engravingFontLabel(it.engravingFont).toLowerCase()}`);
+    lines.push(`${i + 1}. ${it.name}${variant} × ${it.quantity} — ${formatINR(it.lineTotal)}`);
   });
-  lines.push(
-    ``,
-    ...waTotalsLines(totals),
-    ``,
-    `Ship to:`,
-    `${customer.name}, ${customer.phone}`,
-    `${customer.address}, ${customer.city}, ${customer.state} – ${customer.pincode}`,
-    ``,
-    `Please confirm my order. Thank you!${totals.giftWrap ? " Please include the signature gift wrap." : ""}${totals.giftMessage ? ` Gift card: “${totals.giftMessage}”` : ""}${totals.engravingText ? ` Please engrave: “${totals.engravingText}”.` : ""}`
-  );
-  return waLink(settings.whatsappNumber, lines.join("\n"));
+  return lines;
+}
+
+/** Pre-filled concierge message for each stage of the order journey. */
+export function waOrderUpdateMessage(kind: OrderUpdateKind, o: WaOrderUpdate): string {
+  const first = (o.customerName || "there").trim().split(/\s+/)[0];
+  const items = orderItemsSummary(o);
+  const greeting = `Namaste ${first}! ◆ *LN Jewellers* here.`;
+  switch (kind) {
+    case "RECEIVED":
+      return [
+        greeting,
+        ``,
+        `We've received your order *${o.orderNumber}* —`,
+        ``,
+        ...items,
+        ``,
+        `*Total: ${formatINR(o.total)}* (incl. GST)`,
+        ``,
+        `Our concierge will confirm availability, payment and delivery with you right here. No payment is taken until you're fully satisfied.`,
+        ``,
+        `Thank you for choosing handcrafted gold. ✨`,
+      ].join("\n");
+    case "CONFIRMED":
+      return [
+        greeting,
+        ``,
+        `Your order *${o.orderNumber}* is *confirmed* ✅`,
+        ``,
+        `Our karigars are preparing your piece(s):`,
+        ...items,
+        ``,
+        `We'll message you the moment it's ready for dispatch.`,
+      ].join("\n");
+    case "IN_PRODUCTION":
+      return [
+        greeting,
+        ``,
+        `Good news — your order *${o.orderNumber}* is now *on the karigar's bench* 🔨`,
+        ``,
+        ...items,
+        ``,
+        `Hand-finishing takes a little time; we'll share dispatch details here as soon as it's done.`,
+      ].join("\n");
+    case "SHIPPED":
+      return [
+        greeting,
+        ``,
+        `Your order *${o.orderNumber}* has been *dispatched* 📦 — fully insured.`,
+        ``,
+        ...items,
+        ``,
+        `Expected delivery: 3–5 working days. The courier will call you before delivery — please keep your phone nearby.`,
+      ].join("\n");
+    case "DELIVERED": {
+      const lines = [
+        greeting,
+        ``,
+        `Your order *${o.orderNumber}* has been *delivered* 🎉`,
+        ``,
+        `Thank you for choosing LN Jewellers — we hope the pieces bring you joy for generations.`,
+        ``,
+        `Care tip: store in the linen pouch, keep away from perfume, and polish gently with the gold cloth provided.`,
+      ];
+      if (o.googleReviewUrl) {
+        lines.push(``, `If you loved the experience, a Google review means the world to our karigars: ${o.googleReviewUrl}`);
+      }
+      return lines.join("\n");
+    }
+    case "CANCELLED":
+      return [
+        greeting,
+        ``,
+        `Your order *${o.orderNumber}* has been cancelled.`,
+        o.paymentStatus === "PAID"
+          ? `Any amount paid will be refunded to your account within 3–5 working days.`
+          : `No payment was taken, so there's nothing to refund.`,
+        ``,
+        `We hope to craft for you another time. — LN Jewellers ◆`,
+      ].join("\n");
+  }
+}
+
+/** Which update suits an order's current status (drives the suggested button). */
+export function statusToUpdateKind(status: string): OrderUpdateKind {
+  switch (status) {
+    case "CONFIRMED":
+      return "CONFIRMED";
+    case "IN_PRODUCTION":
+      return "IN_PRODUCTION";
+    case "SHIPPED":
+      return "SHIPPED";
+    case "DELIVERED":
+      return "DELIVERED";
+    case "CANCELLED":
+      return "CANCELLED";
+    default:
+      return "RECEIVED";
+  }
 }
 
 // ---------- Misc ----------

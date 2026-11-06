@@ -12,9 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Checkbox } from "@/components/ui/checkbox";
 import { ShoppingBag, MessageCircle, CreditCard, CheckCircle2, ArrowLeft, ShieldCheck, Send, Ticket, Gift, PenLine, Sparkles, ReceiptText } from "lucide-react";
 import { toast } from "sonner";
-import { formatINR, netPrice, waOrderMessage, engravingFontLabel, engravingTotals, engravingFeeFor } from "@/lib/format";
+import { formatINR, netPrice, engravingFontLabel, engravingTotals, engravingFeeFor } from "@/lib/format";
 import { isEmailValid, isPhoneValid, isPincodeValid, ADDRESS_MIN_LENGTH, summarizeFieldErrors } from "@/lib/validation";
-import type { CartItem, StoreSettingsDTO } from "@/lib/types";
+import type { CartItem } from "@/lib/types";
 
 interface PlacedOrder {
   orderNumber: string;
@@ -60,7 +60,6 @@ export default function CheckoutView() {
   const [method, setMethod] = useState<"WHATSAPP" | "RAZORPAY">("WHATSAPP");
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
-  const [whatsappUrl, setWhatsappUrl] = useState("");
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [couponMsg, setCouponMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
@@ -77,21 +76,14 @@ export default function CheckoutView() {
         <p className="text-[11px] uppercase tracking-[0.35em] text-[#A8862A]">Order received</p>
         <h1 className="mt-3 font-serif text-4xl">Thank you, the atelier awaits</h1>
         <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
-          Your order <strong className="text-foreground">{placed.orderNumber}</strong> has been placed.
-          {method === "WHATSAPP" && whatsappUrl
-            ? " Now press send on WhatsApp so our concierge can confirm availability, payment and delivery personally."
-            : " Our team will contact you shortly with payment and delivery details."}
+          Your order <strong className="text-foreground">{placed.orderNumber}</strong> has been placed and our
+          karigars have been notified.
         </p>
-        {method === "WHATSAPP" && whatsappUrl && (
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-6 inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-[#25D366] px-8 text-base font-medium text-white transition-transform hover:scale-[1.02] hover:bg-[#1fb857]"
-          >
-            <MessageCircle className="h-5 w-5" /> Open WhatsApp & press send
-          </a>
-        )}
+        <p className="mx-auto mt-3 max-w-md rounded-lg border border-[#25D366]/30 bg-[#25D366]/8 px-4 py-3 text-sm leading-relaxed text-[#128C4B]">
+          <MessageCircle className="mr-1.5 inline h-4 w-4 align-[-2px]" />
+          Our concierge will <strong>WhatsApp you on {form.phone.trim()}</strong> shortly to confirm payment and
+          delivery — you don't need to message us first.
+        </p>
         <div className="mx-auto mt-10 max-w-md rounded-xl border border-[#D4AF37]/25 bg-white p-6 text-left">
           <h2 className="font-serif text-lg">Order {placed.orderNumber}</h2>
           <div className="mt-3 space-y-1.5 text-sm">
@@ -272,20 +264,8 @@ export default function CheckoutView() {
       }
       const order: PlacedOrder = data.order;
       setPlaced(order);
-      const url =
-        method === "WHATSAPP" && settings
-          ? waOrderMessage(
-              settings as StoreSettingsDTO,
-              order.orderNumber,
-              cart,
-              { subtotal: order.subtotal, shipping: order.shipping, tax: order.tax, total: order.total, couponCode: order.couponCode, discount: order.couponDiscount, giftWrap: order.giftWrap, giftWrapFee: order.giftWrapFee, giftMessage: order.giftMessage, engravingFee: order.engravingFee },
-              { name: form.customerName, phone: form.phone, address: form.address, city: form.city, state: form.state, pincode: form.pincode }
-            )
-          : "";
-      setWhatsappUrl(url);
-      if (method === "WHATSAPP" && url) {
-        window.open(url, "_blank");
-      }
+      // The concierge (admin panel) messages the customer on WhatsApp from the
+      // store's own number — the shopper never has to press send on anything.
       clearCart();
     } catch {
       setError("Network error — please try again");
@@ -470,9 +450,9 @@ export default function CheckoutView() {
               >
                 <RadioGroupItem value="WHATSAPP" className="mt-0.5" />
                 <div>
-                  <p className="flex items-center gap-2 font-medium"><MessageCircle className="h-4 w-4 text-[#128C4B]" /> Order via WhatsApp</p>
+                  <p className="flex items-center gap-2 font-medium"><MessageCircle className="h-4 w-4 text-[#128C4B]" /> Order via WhatsApp concierge</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    We create your order and pre-fill a WhatsApp message with everything — you review and press send. Our concierge confirms payment & delivery personally.
+                    Place your order right here — our concierge then messages <span className="font-medium text-foreground">you</span> on WhatsApp to confirm payment &amp; delivery personally. You don't have to send anything.
                   </p>
                 </div>
               </label>
@@ -573,7 +553,7 @@ export default function CheckoutView() {
           </div>
           {error && <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
           <Button onClick={placeOrder} disabled={placing} className="btn-shimmer mt-5 h-13 w-full bg-[#D4AF37] py-3.5 text-base font-medium text-black hover:bg-[#E6C87A]">
-            {placing ? "Placing your order…" : method === "WHATSAPP" ? (<><Send className="mr-2 h-4 w-4" /> Place order & open WhatsApp</>) : "Place order"}
+            {placing ? "Placing your order…" : (<><Send className="mr-2 h-4 w-4" /> Place order</>)}
           </Button>
           <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
             By placing this order you agree to our{" "}
