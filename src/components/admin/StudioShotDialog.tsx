@@ -35,19 +35,50 @@ const SIZE_OPTIONS = [
   { value: "864x1152", label: "Portrait 3:4" },
 ];
 
-/** Convert any same-origin/relative image path into a base64 data URL so the
- *  generation API always receives bytes it can read. */
+/** Source images are normalised before upload: anything larger than 1536 px
+ *  is downscaled and re-encoded as JPEG so the request stays well inside the
+ *  ~4.5 MB serverless body limit (a 12 MP phone photo would exceed it). */
+const MAX_SRC_DIM = 1536;
+const KEEP_ORIGINAL_CHARS = 900_000;
+
 async function toDataUrl(src: string): Promise<string> {
-  if (/^data:image\//i.test(src)) return src;
+  if (/^data:image\//i.test(src)) return compressDataUrl(src);
   const res = await fetch(src);
   if (!res.ok) throw new Error("Could not read the source image");
   const blob = await res.blob();
-  return await new Promise<string>((resolve, reject) => {
+  const raw = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = () => reject(new Error("Could not read the source image"));
     reader.readAsDataURL(blob);
   });
+  return compressDataUrl(raw);
+}
+
+async function compressDataUrl(dataUrl: string): Promise<string> {
+  if (dataUrl.length < KEEP_ORIGINAL_CHARS) return dataUrl;
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Could not decode the source image"));
+      el.src = dataUrl;
+    });
+    const scale = Math.min(1, MAX_SRC_DIM / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+    if (scale === 1 && dataUrl.length < 2_200_000) return dataUrl;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return dataUrl;
+    ctx.fillStyle = "#FFFFFF"; // flatten any PNG transparency onto studio white
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const out = canvas.toDataURL("image/jpeg", 0.92);
+    return out.length < dataUrl.length ? out : dataUrl;
+  } catch {
+    return dataUrl; // best effort — the server still validates the final size
+  }
 }
 
 interface StudioShotDialogProps {
