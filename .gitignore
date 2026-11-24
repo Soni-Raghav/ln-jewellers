@@ -55,6 +55,7 @@ server.log
 # local dev database (recreate with: bun run db:push && bun run scripts/seed.ts)
 /db/
 /custom.db
+/prisma/dev.db
 
 # agent handover artifacts
 /agent-ctx/
